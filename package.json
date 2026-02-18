@@ -1,6 +1,6 @@
 {
   "name": "delivery-intel",
-  "version": "1.0.1",
+  "version": "1.0.2",
   "description": "Point it at any GitHub repo — get DORA metrics, vulnerability scan, and a health score. No setup, no tokens for public repos. CLI + web dashboard.",
   "keywords": [
     "dora",
