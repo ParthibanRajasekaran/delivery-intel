@@ -44,13 +44,11 @@ function makeVuln(
   return {
     packageName: pkg,
     currentVersion: "1.0.0",
-    ecosystem: "npm",
     vulnId: `GHSA-${severity}-001`,
     severity,
     summary: `A ${severity} vulnerability in ${pkg}`,
     fixedVersion: "2.0.0",
     aliases: [],
-    referenceUrl: "https://osv.dev",
   };
 }
 

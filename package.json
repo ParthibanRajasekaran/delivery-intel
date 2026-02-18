@@ -1,20 +1,30 @@
 {
   "name": "delivery-intel",
-  "version": "1.0.0",
-  "description": "Software Delivery Intelligence — DORA metrics, vulnerability scanning, and actionable suggestions for any GitHub repository.",
+  "version": "1.0.1",
+  "description": "Point it at any GitHub repo — get DORA metrics, vulnerability scan, and a health score. No setup, no tokens for public repos. CLI + web dashboard.",
   "keywords": [
     "dora",
+    "dora-metrics",
     "devops",
     "metrics",
     "github",
     "ci-cd",
-    "deployment",
+    "deployment-frequency",
+    "lead-time",
+    "change-failure-rate",
     "vulnerability",
+    "osv",
     "cli",
-    "dashboard"
+    "dashboard",
+    "software-delivery",
+    "engineering-metrics"
   ],
   "license": "MIT",
   "author": "ParthibanRajasekaran",
+  "homepage": "https://github.com/ParthibanRajasekaran/delivery-intel#readme",
+  "bugs": {
+    "url": "https://github.com/ParthibanRajasekaran/delivery-intel/issues"
+  },
   "repository": {
     "type": "git",
     "url": "https://github.com/ParthibanRajasekaran/delivery-intel"
@@ -34,7 +44,25 @@
     "build:cli": "tsc -p tsconfig.cli.json",
     "prepublishOnly": "npm run build:cli",
     "start": "next start",
-    "lint": "next lint"
+    "lint": "eslint . --max-warnings 15",
+    "lint:fix": "eslint . --fix",
+    "format": "prettier --write .",
+    "format:check": "prettier --check .",
+    "typecheck": "tsc --noEmit && tsc -p tsconfig.cli.json --noEmit",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "test:coverage": "vitest run --coverage",
+    "validate": "npm run lint && npm run typecheck && npm run test",
+    "prepare": "husky"
+  },
+  "lint-staged": {
+    "*.{ts,tsx}": [
+      "eslint --fix --max-warnings 15",
+      "prettier --write"
+    ],
+    "*.{json,css,md,yml,yaml}": [
+      "prettier --write"
+    ]
   },
   "dependencies": {
     "@octokit/graphql": "^9.0.3",
@@ -51,10 +79,25 @@
     "typescript": "^5.9.3"
   },
   "devDependencies": {
+    "@eslint/eslintrc": "^3.3.3",
+    "@eslint/js": "^10.0.1",
     "@tailwindcss/postcss": "^4.2.0",
+    "@testing-library/jest-dom": "^6.9.1",
+    "@testing-library/react": "^16.3.2",
     "@types/react-dom": "^19.2.3",
+    "@vitejs/plugin-react": "^5.1.4",
     "autoprefixer": "^10.4.24",
+    "eslint": "^10.0.0",
+    "eslint-config-next": "^16.1.6",
+    "eslint-config-prettier": "^10.1.8",
+    "eslint-plugin-import": "^2.32.0",
+    "husky": "^9.1.7",
+    "jsdom": "^28.1.0",
+    "lint-staged": "^16.2.7",
     "postcss": "^8.5.6",
-    "tailwindcss": "^4.2.0"
+    "prettier": "^3.8.1",
+    "tailwindcss": "^4.2.0",
+    "typescript-eslint": "^8.56.0",
+    "vitest": "^4.0.18"
   }
 }
