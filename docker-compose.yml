@@ -1,0 +1,54 @@
+# ============================================================================
+# Delivery Intel — Docker Compose
+# ============================================================================
+# Run the full stack (dashboard + Redis cache) with:
+#   GITHUB_TOKEN=ghp_xxx docker compose up
+#
+# Or CLI-only (no Redis needed):
+#   docker compose run --rm cli vercel/next.js
+# ============================================================================
+
+services:
+  # ---------------------------------------------------------------------------
+  # Dashboard — web UI on http://localhost:3000
+  # ---------------------------------------------------------------------------
+  dashboard:
+    build: .
+    ports:
+      - "3000:3000"
+    environment:
+      - GITHUB_TOKEN=${GITHUB_TOKEN}
+      - REDIS_URL=redis://redis:6379
+      - PORT=3000
+    depends_on:
+      redis:
+        condition: service_healthy
+    restart: unless-stopped
+
+  # ---------------------------------------------------------------------------
+  # CLI — one-shot analysis (exits after printing results)
+  # ---------------------------------------------------------------------------
+  cli:
+    build: .
+    environment:
+      - GITHUB_TOKEN=${GITHUB_TOKEN}
+    entrypoint: ["node", "/app/bin/delivery-intel.js"]
+    profiles:
+      - cli
+
+  # ---------------------------------------------------------------------------
+  # Redis — caching layer for the dashboard
+  # ---------------------------------------------------------------------------
+  redis:
+    image: redis:7-alpine
+    volumes:
+      - redis-data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
+    restart: unless-stopped
+
+volumes:
+  redis-data:
