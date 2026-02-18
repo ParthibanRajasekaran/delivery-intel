@@ -1,0 +1,60 @@
+{
+  "name": "delivery-intel",
+  "version": "1.0.0",
+  "description": "Software Delivery Intelligence — DORA metrics, vulnerability scanning, and actionable suggestions for any GitHub repository.",
+  "keywords": [
+    "dora",
+    "devops",
+    "metrics",
+    "github",
+    "ci-cd",
+    "deployment",
+    "vulnerability",
+    "cli",
+    "dashboard"
+  ],
+  "license": "MIT",
+  "author": "ParthibanRajasekaran",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/ParthibanRajasekaran/delivery-intel"
+  },
+  "bin": {
+    "delivery-intel": "./bin/delivery-intel.js"
+  },
+  "main": "./dist/cli/analyzer.js",
+  "types": "./dist/cli/analyzer.d.ts",
+  "files": [
+    "dist/cli/",
+    "bin/"
+  ],
+  "scripts": {
+    "dev": "next dev",
+    "build": "next build",
+    "build:cli": "tsc -p tsconfig.cli.json",
+    "prepublishOnly": "npm run build:cli",
+    "start": "next start",
+    "lint": "next lint"
+  },
+  "dependencies": {
+    "@octokit/graphql": "^9.0.3",
+    "@octokit/rest": "^22.0.1",
+    "@types/node": "^25.2.3",
+    "@types/react": "^19.2.14",
+    "date-fns": "^4.1.0",
+    "framer-motion": "^12.34.2",
+    "ioredis": "^5.9.3",
+    "next": "^16.1.6",
+    "react": "^19.2.4",
+    "react-dom": "^19.2.4",
+    "recharts": "^3.7.0",
+    "typescript": "^5.9.3"
+  },
+  "devDependencies": {
+    "@tailwindcss/postcss": "^4.2.0",
+    "@types/react-dom": "^19.2.3",
+    "autoprefixer": "^10.4.24",
+    "postcss": "^8.5.6",
+    "tailwindcss": "^4.2.0"
+  }
+}
