@@ -15,16 +15,12 @@ import type {
   DORAMetrics,
   GitHubWorkflowRun,
   GitHubDeployment,
-  GitHubDeploymentStatus,
   GitHubPullRequest,
-  GQLPullRequestsResponse,
 } from "@/types";
 import {
   fetchWorkflowRuns,
   fetchDeployments,
-  fetchDeploymentStatuses,
   fetchMergedPullRequests,
-  fetchPRsWithDeployments,
 } from "./github";
 
 // ---------------------------------------------------------------------------
@@ -34,37 +30,37 @@ import {
 function rateDeploymentFrequency(
   perWeek: number
 ): DORAMetrics["deploymentFrequency"]["rating"] {
-  if (perWeek >= 7) return "Elite";       // multiple per day
-  if (perWeek >= 1) return "High";        // at least weekly
-  if (perWeek >= 0.25) return "Medium";   // at least monthly
+  if (perWeek >= 7) {return "Elite";}       // multiple per day
+  if (perWeek >= 1) {return "High";}        // at least weekly
+  if (perWeek >= 0.25) {return "Medium";}   // at least monthly
   return "Low";
 }
 
 function rateLeadTime(
   medianHours: number
 ): DORAMetrics["leadTimeForChanges"]["rating"] {
-  if (medianHours < 24) return "Elite";
-  if (medianHours < 168) return "High";   // < 1 week
-  if (medianHours < 720) return "Medium"; // < 1 month
+  if (medianHours < 24) {return "Elite";}
+  if (medianHours < 168) {return "High";}   // < 1 week
+  if (medianHours < 720) {return "Medium";} // < 1 month
   return "Low";
 }
 
 function rateChangeFailureRate(
   pct: number
 ): DORAMetrics["changeFailureRate"]["rating"] {
-  if (pct <= 5) return "Elite";
-  if (pct <= 10) return "High";
-  if (pct <= 15) return "Medium";
+  if (pct <= 5) {return "Elite";}
+  if (pct <= 10) {return "High";}
+  if (pct <= 15) {return "Medium";}
   return "Low";
 }
 
 function rateMTTR(
   hours: number | null
 ): DORAMetrics["meanTimeToRestore"]["rating"] {
-  if (hours === null) return "N/A";
-  if (hours < 1) return "Elite";
-  if (hours < 24) return "High";
-  if (hours < 168) return "Medium";
+  if (hours === null) {return "N/A";}
+  if (hours < 1) {return "Elite";}
+  if (hours < 24) {return "High";}
+  if (hours < 168) {return "Medium";}
   return "Low";
 }
 
@@ -73,7 +69,7 @@ function rateMTTR(
 // ---------------------------------------------------------------------------
 
 function median(values: number[]): number {
-  if (values.length === 0) return 0;
+  if (values.length === 0) {return 0;}
   const sorted = [...values].sort((a, b) => a - b);
   const mid = Math.floor(sorted.length / 2);
   return sorted.length % 2 !== 0
@@ -180,7 +176,7 @@ async function computeChangeFailureRate(
 // 4) Mean Time to Restore (MTTR)
 // ---------------------------------------------------------------------------
 
-async function computeMTTR(
+async function _computeMTTR(
   id: RepoIdentifier
 ): Promise<DORAMetrics["meanTimeToRestore"]> {
   const runs: GitHubWorkflowRun[] = await fetchWorkflowRuns(id, 100);

@@ -24,7 +24,7 @@ function parsePackageJson(raw: string): ParsedDependency[] {
     const deps: ParsedDependency[] = [];
     for (const section of ["dependencies", "devDependencies"] as const) {
       const map = pkg[section] as Record<string, string> | undefined;
-      if (!map) continue;
+      if (!map) {continue;}
       for (const [name, versionSpec] of Object.entries(map)) {
         // Strip ^, ~, >=, etc. to get a bare version
         const version = versionSpec.replace(/^[\^~>=<]+/, "");
@@ -41,7 +41,7 @@ function parseRequirementsTxt(raw: string): ParsedDependency[] {
   const deps: ParsedDependency[] = [];
   for (const line of raw.split("\n")) {
     const trimmed = line.trim();
-    if (!trimmed || trimmed.startsWith("#")) continue;
+    if (!trimmed || trimmed.startsWith("#")) {continue;}
     // e.g., flask==2.3.0 or requests>=2.28.0
     const match = trimmed.match(/^([A-Za-z0-9_.-]+)\s*[=><~!]+\s*([0-9.]+)/);
     if (match) {
@@ -58,10 +58,10 @@ function parseRequirementsTxt(raw: string): ParsedDependency[] {
 function parseGoMod(raw: string): ParsedDependency[] {
   const deps: ParsedDependency[] = [];
   const requireBlock = raw.match(/require\s*\(([\s\S]*?)\)/);
-  if (!requireBlock) return deps;
+  if (!requireBlock) {return deps;}
   for (const line of requireBlock[1].split("\n")) {
     const trimmed = line.trim();
-    if (!trimmed || trimmed.startsWith("//")) continue;
+    if (!trimmed || trimmed.startsWith("//")) {continue;}
     const parts = trimmed.split(/\s+/);
     if (parts.length >= 2) {
       deps.push({
@@ -108,7 +108,7 @@ async function queryOSV(
         package: { name: packageName, ecosystem },
       }),
     });
-    if (!res.ok) return { vulns: [] };
+    if (!res.ok) {return { vulns: [] };}
     return (await res.json()) as OSVQueryResult;
   } catch {
     return { vulns: [] };
@@ -138,11 +138,11 @@ export async function scanVulnerabilities(
   ]);
 
   const allDeps: ParsedDependency[] = [];
-  if (pkgJson) allDeps.push(...parsePackageJson(pkgJson));
-  if (reqTxt) allDeps.push(...parseRequirementsTxt(reqTxt));
-  if (goMod) allDeps.push(...parseGoMod(goMod));
+  if (pkgJson) {allDeps.push(...parsePackageJson(pkgJson));}
+  if (reqTxt) {allDeps.push(...parseRequirementsTxt(reqTxt));}
+  if (goMod) {allDeps.push(...parseGoMod(goMod));}
 
-  if (allDeps.length === 0) return [];
+  if (allDeps.length === 0) {return [];}
 
   // Query OSV.dev — batch in groups of 10 to avoid overwhelming the API
   const vulnerabilities: DependencyVulnerability[] = [];
@@ -180,10 +180,10 @@ export async function scanVulnerabilities(
         let severity = "unknown";
         if (vuln.severity && vuln.severity.length > 0) {
           const cvss = parseFloat(vuln.severity[0].score);
-          if (cvss >= 9) severity = "critical";
-          else if (cvss >= 7) severity = "high";
-          else if (cvss >= 4) severity = "medium";
-          else severity = "low";
+          if (cvss >= 9) {severity = "critical";}
+          else if (cvss >= 7) {severity = "high";}
+          else if (cvss >= 4) {severity = "medium";}
+          else {severity = "low";}
         }
 
         vulnerabilities.push({

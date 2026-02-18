@@ -201,9 +201,9 @@ export function computeOverallScore(
 
   // Penalty for vulnerabilities: -5 per critical, -2 per high, -1 per medium
   const vulnPenalty = vulnerabilities.reduce((sum, v) => {
-    if (v.severity === "critical") return sum + 5;
-    if (v.severity === "high") return sum + 2;
-    if (v.severity === "medium") return sum + 1;
+    if (v.severity === "critical") {return sum + 5;}
+    if (v.severity === "high") {return sum + 2;}
+    if (v.severity === "medium") {return sum + 1;}
     return sum;
   }, 0);
 

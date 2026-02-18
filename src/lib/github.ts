@@ -56,13 +56,13 @@ export function parseRepoSlug(input: string): RepoIdentifier {
   const urlMatch = cleaned.match(
     /github\.com\/([A-Za-z0-9_.-]+)\/([A-Za-z0-9_.-]+)/
   );
-  if (urlMatch) return { owner: urlMatch[1], repo: urlMatch[2] };
+  if (urlMatch) {return { owner: urlMatch[1], repo: urlMatch[2] };}
 
   // Slug: owner/repo
   const slugMatch = cleaned.match(
     /^([A-Za-z0-9_.-]+)\/([A-Za-z0-9_.-]+)$/
   );
-  if (slugMatch) return { owner: slugMatch[1], repo: slugMatch[2] };
+  if (slugMatch) {return { owner: slugMatch[1], repo: slugMatch[2] };}
 
   throw new Error(
     `Invalid repository identifier: "${input}". Use "owner/repo" or a GitHub URL.`

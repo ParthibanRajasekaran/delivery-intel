@@ -5,7 +5,8 @@
 // Uses Redis caching to stay under GitHub API rate limits.
 // ============================================================================
 
-import { NextRequest, NextResponse } from "next/server";
+import type { NextRequest} from "next/server";
+import { NextResponse } from "next/server";
 import { parseRepoSlug, fetchRecentCommits } from "@/lib/github";
 import { computeDORAMetrics } from "@/lib/metrics";
 import { scanVulnerabilities } from "@/lib/vulnerabilities";
