@@ -1,0 +1,166 @@
+@import "tailwindcss";
+
+:root {
+  --bg: #0a0a0f;
+  --surface: #12121a;
+  --surface-hover: #1a1a2e;
+  --border: #2a2a3e;
+  --text: #e4e4ef;
+  --text-muted: #8888a0;
+  --accent: #6366f1;
+  --accent-hover: #818cf8;
+  --success: #22c55e;
+  --warning: #eab308;
+  --danger: #ef4444;
+  --info: #3b82f6;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html {
+  color-scheme: dark;
+}
+
+body {
+  margin: 0;
+  font-family:
+    "Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  background: var(--bg);
+  color: var(--text);
+  -webkit-font-smoothing: antialiased;
+}
+
+/* ── Ambient background glow ── */
+.ambient-glow {
+  position: fixed;
+  inset: 0;
+  z-index: 0;
+  pointer-events: none;
+  overflow: hidden;
+}
+.ambient-glow::before,
+.ambient-glow::after {
+  content: "";
+  position: absolute;
+  border-radius: 50%;
+  filter: blur(120px);
+  opacity: 0.15;
+  animation: ambient-drift 12s ease-in-out infinite alternate;
+}
+.ambient-glow::before {
+  width: 600px;
+  height: 600px;
+  background: var(--accent);
+  top: -200px;
+  left: -100px;
+}
+.ambient-glow::after {
+  width: 500px;
+  height: 500px;
+  background: #a855f7;
+  bottom: -150px;
+  right: -100px;
+  animation-delay: 6s;
+}
+@keyframes ambient-drift {
+  0% { transform: translate(0, 0) scale(1); }
+  100% { transform: translate(60px, 40px) scale(1.1); }
+}
+
+/* ── Hero gradient text ── */
+.hero-gradient-text {
+  background: linear-gradient(135deg, var(--text) 0%, var(--accent) 50%, #a855f7 100%);
+  background-size: 200% 200%;
+  -webkit-background-clip: text;
+  background-clip: text;
+  -webkit-text-fill-color: transparent;
+  animation: gradient-shift 4s ease-in-out infinite;
+}
+@keyframes gradient-shift {
+  0%, 100% { background-position: 0% 50%; }
+  50% { background-position: 100% 50%; }
+}
+
+/* ── Glass card hover effect ── */
+.glass-card {
+  transition: border-color 0.3s ease, box-shadow 0.3s ease;
+  position: relative;
+}
+.glass-card::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  background: linear-gradient(135deg, rgba(99, 102, 241, 0.04) 0%, transparent 50%);
+  pointer-events: none;
+  opacity: 0;
+  transition: opacity 0.3s ease;
+}
+.glass-card:hover::before {
+  opacity: 1;
+}
+
+/* ── Search input focus glow ── */
+.search-input {
+  transition: border-color 0.3s ease, box-shadow 0.3s ease;
+}
+.search-input:focus {
+  border-color: var(--accent) !important;
+  box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.15), 0 0 20px rgba(99, 102, 241, 0.1);
+}
+
+/* ── Loading spinner ── */
+.spinner {
+  display: inline-block;
+  width: 16px;
+  height: 16px;
+  border: 2px solid rgba(255, 255, 255, 0.3);
+  border-top-color: #fff;
+  border-radius: 50%;
+  animation: spin 0.6s linear infinite;
+}
+@keyframes spin {
+  to { transform: rotate(360deg); }
+}
+
+/* ── Skeleton loading cards ── */
+.skeleton-card {
+  border-radius: 12px;
+  background: linear-gradient(
+    110deg,
+    var(--surface) 0%,
+    var(--surface) 40%,
+    var(--surface-hover) 50%,
+    var(--surface) 60%,
+    var(--surface) 100%
+  );
+  background-size: 200% 100%;
+  animation: shimmer 1.5s ease-in-out infinite;
+  border: 1px solid var(--border);
+}
+@keyframes shimmer {
+  0% { background-position: 200% 0; }
+  100% { background-position: -200% 0; }
+}
+
+/* ── Suggestion card hover trail ── */
+.suggestion-card {
+  transition: transform 0.15s ease;
+}
+
+/* ── Commit row slide ── */
+.commit-row {
+  transition: background 0.15s ease;
+}
+
+/* Recharts overrides */
+.recharts-text {
+  fill: var(--text-muted) !important;
+  font-size: 12px;
+}
+
+.recharts-cartesian-grid line {
+  stroke: var(--border) !important;
+}
