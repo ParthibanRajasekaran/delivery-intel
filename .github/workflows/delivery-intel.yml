@@ -7,8 +7,9 @@
 # Copy this file into your repo at:
 #   .github/workflows/delivery-intel.yml
 #
-# Required repo secret:
-#   DELIVERY_INTEL_TOKEN — a GitHub PAT with repo read access
+# Token resolution (in order):
+#   1. DELIVERY_INTEL_TOKEN secret  — custom PAT (optional)
+#   2. Built-in GITHUB_TOKEN        — auto-provided by Actions
 # ============================================================================
 
 name: Delivery Intelligence
@@ -33,9 +34,10 @@ jobs:
 
     steps:
       - name: Run Delivery Intel
+        env:
+          GITHUB_TOKEN: ${{ secrets.DELIVERY_INTEL_TOKEN || secrets.GITHUB_TOKEN }}
         run: |
           npx delivery-intel@latest ${{ github.repository }} \
-            --token "${{ secrets.DELIVERY_INTEL_TOKEN }}" \
             --json \
             --output delivery-intel-report.json
 

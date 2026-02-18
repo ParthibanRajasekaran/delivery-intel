@@ -331,8 +331,8 @@ async function main(): Promise<void> {
   for (let i = 0; i < args.length; i++) {
     if (args[i] === "--output" && args[i + 1]) {
       outputFile = args[++i];
-    } else if (args[i] === "--token" && args[i + 1]) {
-      token = args[++i];
+    } else if (args[i] === "--token" && i + 1 < args.length) {
+      token = args[++i] || null;
     } else if (!args[i].startsWith("--")) {
       repo = args[i];
     }
