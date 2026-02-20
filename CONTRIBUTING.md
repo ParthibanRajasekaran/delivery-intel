@@ -33,7 +33,7 @@ npm install
    ```bash
    npm run lint && npm run typecheck && npm run test
    ```
-4. Commit using [Conventional Commits](https://www.conventionalcommits.org/) — the pre-commit hook will lint and format staged files automatically
+4. Commit using [Conventional Commits](https://www.conventionalcommits.org/). The pre-commit hook will lint and format staged files automatically
 5. Open a pull request against `main`
 
 ## Pre-commit Hooks
@@ -43,12 +43,12 @@ This repo uses [Husky](https://typicode.github.io/husky/) + [lint-staged](https:
 - **pre-commit**: Runs ESLint and Prettier on staged files
 - **pre-push**: Runs the TypeScript compiler to catch type errors
 
-These run automatically — no setup needed after `npm install`.
+These run automatically. No setup needed after `npm install`.
 
 ## Code Style
 
 - TypeScript everywhere
-- Use `type` imports (`import type { ... }`) — enforced by ESLint
+- Use `type` imports (`import type { ... }`), enforced by ESLint
 - Prefer `const` over `let`, never use `var`
 - Strict equality (`===`), always use curly braces
 
@@ -64,7 +64,7 @@ npm run test
 npm run test:coverage
 ```
 
-Coverage thresholds are enforced in CI — PRs that drop coverage below the threshold will fail.
+Coverage thresholds are enforced in CI. PRs that drop coverage below the threshold will fail.
 
 ## Reporting Issues
 

@@ -22,7 +22,7 @@ You should receive an acknowledgment within 48 hours. We'll work with you to und
 
 ## Security Practices
 
-- **No credentials stored in code** — delivery-intel never persists tokens. It reads them from environment variables or the OS keychain via `gh auth token`.
-- **Minimal permissions** — Only read access to repos, actions, and pull requests is required.
-- **Dependency scanning** — We run `npm audit` in CI and use OSV.dev for vulnerability checks.
-- **Pinned dependencies** — Lock files are committed and reviewed.
+- **No credentials stored in code.** delivery-intel never persists tokens. It reads them from environment variables or the OS keychain via `gh auth token`.
+- **Minimal permissions.** Only read access to repos, actions, and pull requests is required.
+- **Dependency scanning.** We run `npm audit` in CI and use OSV.dev for vulnerability checks.
+- **Pinned dependencies.** Lock files are committed and reviewed.

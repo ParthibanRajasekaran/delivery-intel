@@ -2,7 +2,7 @@
 
 # 📊 delivery-intel
 
-**Software Delivery Intelligence — in one command.**
+**Software Delivery Intelligence in one command.**
 
 Point it at any GitHub repo. Get DORA metrics, vulnerability scan, and a health score.\
 No setup. No tokens for public repos. Just run it.
@@ -25,7 +25,7 @@ npx delivery-intel facebook/react
 
 ```
   ┌─────────────────────────────────────────────────┐
-  │  📊 Delivery Intel  — Software Delivery Intelligence  │
+  │  📊 Delivery Intel - Software Delivery Intelligence  │
   └─────────────────────────────────────────────────┘
 
   Repository:  facebook/react
@@ -49,7 +49,7 @@ npx delivery-intel facebook/react
   ✓ No known vulnerabilities found
 
   Suggestions  ─────────────────────────────────────
-  ✓ Looking good — no critical issues detected
+  ✓ Looking good, no critical issues detected
 ```
 
 > Works with full URLs too: `npx delivery-intel https://github.com/vercel/next.js`
@@ -76,7 +76,7 @@ npx delivery-intel facebook/react
 ### CLI (zero install)
 
 ```bash
-# Any public repo — no token needed
+# Any public repo, no token needed
 npx delivery-intel facebook/react
 
 # JSON output
@@ -96,7 +96,7 @@ npm run dev
 # → http://localhost:3000
 ```
 
-Paste a repo URL and get an animated dashboard with score ring, DORA cards, charts, vulnerability table, and suggestions — all in a dark theme with smooth animations.
+Paste a repo URL and get an animated dashboard with score ring, DORA cards, charts, vulnerability table, and suggestions. Dark theme with smooth animations.
 
 ### Docker
 
@@ -115,13 +115,13 @@ REPO=facebook/react docker compose run --rm cli
 | Method | Setup | Best for |
 |--------|-------|----------|
 | **None** | Just run it | Public repos (60 req/hr) |
-| **`gh auth login`** | `brew install gh && gh auth login` | Daily use — token stays in OS keychain ✨ |
+| **`gh auth login`** | `brew install gh && gh auth login` | Daily use, token stays in OS keychain ✨ |
 | **`GITHUB_TOKEN`** | `export GITHUB_TOKEN=ghp_...` | CI environments |
 | **`--token`** | `--token ghp_...` | Quick one-off (avoid in CI) |
 
 Token resolution order: `--token` flag → `GITHUB_TOKEN` env → `gh auth token`
 
-> **Private repos** require a token with `repo` scope. For CI, use `${{ secrets.GITHUB_TOKEN }}` — it's auto-scoped and expires per job.
+> **Private repos** require a token with `repo` scope. For CI, use `${{ secrets.GITHUB_TOKEN }}`. It's auto-scoped and expires per job.
 
 ---
 
@@ -203,7 +203,7 @@ jobs:
 </tr>
 <tr>
 <td><strong>Caching</strong></td>
-<td>ioredis (optional — graceful degradation)</td>
+<td>ioredis (optional, degrades gracefully)</td>
 </tr>
 <tr>
 <td><strong>Quality</strong></td>
@@ -228,4 +228,4 @@ npm run validate   # lint + typecheck + test in one shot
 
 ## 📄 License
 
-[MIT](LICENSE) — use it however you want.
+[MIT](LICENSE). Use it however you want.
