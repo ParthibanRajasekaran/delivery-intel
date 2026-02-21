@@ -43,7 +43,7 @@ jobs:
       # Run the hygiene gate via a lightweight Node script
       - name: Run Hygiene Check
         id: hygiene
-        uses: actions/github-script@v7
+        uses: actions/github-script@v8
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
