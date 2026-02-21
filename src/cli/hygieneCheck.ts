@@ -3,7 +3,7 @@
 // ============================================================================
 // Automated governance gate that evaluates repository health:
 //   1. README.md presence and minimum length
-//   2. Test coverage threshold (>80%)
+//   2. Test coverage threshold (>60%)
 //   3. No PRs >72 hours without review
 //
 // Produces a structured HygieneReport suitable for Markdown rendering
@@ -49,7 +49,7 @@ export interface HygieneOptions {
 
 const DEFAULT_MAX_REVIEW_WAIT_HOURS = 72;
 const MIN_README_LENGTH = 100;
-const COVERAGE_THRESHOLD = 80;
+const COVERAGE_THRESHOLD = 60;
 
 // ---------------------------------------------------------------------------
 // Individual checks

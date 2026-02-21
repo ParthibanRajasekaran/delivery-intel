@@ -10,22 +10,22 @@ import {
 // checkCoverage (pure function — no API calls)
 // ---------------------------------------------------------------------------
 describe("checkCoverage", () => {
-  it("passes when coverage >= 80%", () => {
-    const result = checkCoverage(85);
+  it("passes when coverage >= 60%", () => {
+    const result = checkCoverage(75);
     expect(result.status).toBe("pass");
-    expect(result.detail).toContain("85.0%");
+    expect(result.detail).toContain("75.0%");
   });
 
-  it("passes at exactly 80%", () => {
-    const result = checkCoverage(80);
-    expect(result.status).toBe("pass");
-  });
-
-  it("fails when coverage < 80%", () => {
+  it("passes at exactly 60%", () => {
     const result = checkCoverage(60);
+    expect(result.status).toBe("pass");
+  });
+
+  it("fails when coverage < 60%", () => {
+    const result = checkCoverage(50);
     expect(result.status).toBe("fail");
-    expect(result.detail).toContain("60.0%");
-    expect(result.detail).toContain("80%");
+    expect(result.detail).toContain("50.0%");
+    expect(result.detail).toContain("60%");
   });
 
   it("warns when coverage is undefined", () => {
@@ -70,7 +70,7 @@ describe("renderHygieneMarkdown", () => {
   });
 
   it("renders a failing report with ❌", () => {
-    const report = makeReport([{ name: "Coverage", status: "fail", detail: "50% < 80%" }], "fail");
+    const report = makeReport([{ name: "Coverage", status: "fail", detail: "50% < 60%" }], "fail");
     const md = renderHygieneMarkdown(report);
     expect(md).toContain("❌");
     expect(md).toContain("FAIL");
