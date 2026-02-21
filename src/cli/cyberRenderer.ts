@@ -8,6 +8,7 @@
 import chalk from "chalk";
 import boxen from "boxen";
 import type { AnalysisResult, DORAMetrics, DependencyVulnerability, Suggestion } from "./analyzer";
+import type { RiskBreakdown } from "./riskEngine";
 
 // ---------------------------------------------------------------------------
 // Palette  (Liquid Glass)
@@ -307,6 +308,83 @@ function renderSuggestions(suggestions: Suggestion[]): string {
   return lines.join("\n");
 }
 
+// ---------------------------------------------------------------------------
+// Risk Score section
+// ---------------------------------------------------------------------------
+
+function renderRiskScore(risk: RiskBreakdown): string {
+  const lines: string[] = [];
+  const sep = dim("─".repeat(56));
+
+  lines.push("  " + cyan.bold("◈  Burnout Risk Score"));
+  lines.push("  " + sep);
+  lines.push("");
+
+  // Risk gauge bar
+  const width = 30;
+  const filled = Math.round((risk.score / 100) * width);
+  const empty = width - filled;
+
+  let barColor: chalk.Chalk;
+  if (risk.level === "low") {
+    barColor = green;
+  } else if (risk.level === "moderate") {
+    barColor = amber;
+  } else if (risk.level === "high") {
+    barColor = red;
+  } else {
+    barColor = chalk.bgHex("#ff073a").white;
+  }
+
+  const bar =
+    barColor("█".repeat(filled)) +
+    dim("░".repeat(empty)) +
+    "  " +
+    bold(`${risk.score}`) +
+    dim("/100") +
+    "  " +
+    barColor.bold(risk.level.toUpperCase());
+
+  lines.push("  " + bar);
+  lines.push("");
+  lines.push("  " + dim("Δ Cycle Time    ") + bold(`${(risk.cycleTimeDelta * 100).toFixed(1)}%`));
+  lines.push("  " + dim("Δ Failure Rate  ") + bold(`${(risk.failureRateDelta * 100).toFixed(1)}%`));
+  if (risk.sentimentMultiplier > 1.0) {
+    lines.push(
+      "  " + dim("Sentiment       ") + amber.bold(`×${risk.sentimentMultiplier.toFixed(2)}`),
+    );
+  }
+  lines.push("");
+  lines.push("  " + dim(risk.summary));
+  lines.push("");
+
+  return lines.join("\n");
+}
+
+// ---------------------------------------------------------------------------
+// Narrative section
+// ---------------------------------------------------------------------------
+
+function renderNarrative(narrative: string, model: string): string {
+  const lines: string[] = [];
+  const sep = dim("─".repeat(56));
+
+  lines.push("  " + cyan.bold("◈  Executive Narrative") + "  " + dim(`(${model})`));
+  lines.push("  " + sep);
+  lines.push("");
+
+  // Format narrative paragraphs (wrap at ~70 chars for terminal readability)
+  for (const paragraph of narrative.split("\n\n")) {
+    const trimmed = paragraph.trim();
+    if (trimmed) {
+      lines.push("  " + trimmed.replace(/\n/g, "\n  "));
+      lines.push("");
+    }
+  }
+
+  return lines.join("\n");
+}
+
 function renderFooter(): string {
   return (
     dim("  ─".repeat(19)) +
@@ -325,18 +403,33 @@ function renderFooter(): string {
 // Public API
 // ---------------------------------------------------------------------------
 
+export interface CyberReportOptions {
+  risk?: RiskBreakdown;
+  narrative?: string;
+  narrativeModel?: string;
+}
+
 /**
  * Render a full Cyber-Diagnostic report to a styled string for the terminal.
  * This output is for human eyes only — JSON mode bypasses this entirely.
  */
-export function renderCyberReport(result: AnalysisResult): string {
+export function renderCyberReport(
+  result: AnalysisResult,
+  options: CyberReportOptions = {},
+): string {
   const parts: string[] = [];
 
   parts.push(renderBanner(result));
   parts.push(renderHealthScore(result.overallScore));
   parts.push(renderDORA(result.doraMetrics, result.dailyDeployments));
+  if (options.risk) {
+    parts.push(renderRiskScore(options.risk));
+  }
   parts.push(renderVulnerabilities(result.vulnerabilities));
   parts.push(renderSuggestions(result.suggestions));
+  if (options.narrative) {
+    parts.push(renderNarrative(options.narrative, options.narrativeModel ?? "template"));
+  }
   parts.push(renderFooter());
 
   return parts.join("\n");

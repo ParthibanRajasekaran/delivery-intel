@@ -32,6 +32,9 @@ services:
     build: .
     environment:
       - GITHUB_TOKEN=${GITHUB_TOKEN}
+      - DELIVERY_INTEL_LLM_API_KEY=${DELIVERY_INTEL_LLM_API_KEY:-}
+      - DELIVERY_INTEL_LLM_BASE_URL=${DELIVERY_INTEL_LLM_BASE_URL:-}
+      - DELIVERY_INTEL_LLM_MODEL=${DELIVERY_INTEL_LLM_MODEL:-}
     entrypoint: ["node", "/app/bin/delivery-intel.js"]
     profiles:
       - cli
