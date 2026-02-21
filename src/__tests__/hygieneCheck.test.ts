@@ -60,39 +60,33 @@ describe("renderHygieneMarkdown", () => {
     };
   }
 
-  it("renders a passing report with ✅", () => {
-    const report = makeReport([{ name: "README.md", status: "pass", detail: "Present" }], "pass");
-    const md = renderHygieneMarkdown(report);
+  const passCheck: HygieneCheck = { name: "README.md", status: "pass", detail: "Present" };
+  const failCheck: HygieneCheck = { name: "Coverage", status: "fail", detail: "50% < 60%" };
+  const warnCheck: HygieneCheck = { name: "Coverage", status: "warn", detail: "Skipped" };
+
+  it("renders a passing report with ✅ and PASS", () => {
+    const md = renderHygieneMarkdown(makeReport([passCheck], "pass"));
     expect(md).toContain("✅");
     expect(md).toContain("Engineering Hygiene Report");
     expect(md).toContain("test/repo");
     expect(md).toContain("PASS");
   });
 
-  it("renders a failing report with ❌", () => {
-    const report = makeReport([{ name: "Coverage", status: "fail", detail: "50% < 60%" }], "fail");
-    const md = renderHygieneMarkdown(report);
+  it("renders a failing report with ❌ and FAIL", () => {
+    const md = renderHygieneMarkdown(makeReport([failCheck], "fail"));
     expect(md).toContain("❌");
     expect(md).toContain("FAIL");
     expect(md).toContain("1 check(s) failed");
   });
 
   it("includes table headers", () => {
-    const report = makeReport([{ name: "Test", status: "pass", detail: "OK" }], "pass");
-    const md = renderHygieneMarkdown(report);
+    const md = renderHygieneMarkdown(makeReport([passCheck], "pass"));
     expect(md).toContain("| Check | Status | Detail |");
   });
 
   it("renders multiple checks in the table", () => {
-    const report = makeReport(
-      [
-        { name: "README.md", status: "pass", detail: "Present" },
-        { name: "Coverage", status: "fail", detail: "Low" },
-        { name: "Stale PRs", status: "warn", detail: "Unknown" },
-      ],
-      "fail",
-    );
-    const md = renderHygieneMarkdown(report);
+    const stalePRCheck: HygieneCheck = { name: "Stale PRs", status: "warn", detail: "Unknown" };
+    const md = renderHygieneMarkdown(makeReport([passCheck, failCheck, stalePRCheck], "fail"));
     expect(md).toContain("README.md");
     expect(md).toContain("Coverage");
     expect(md).toContain("Stale PRs");
@@ -100,21 +94,15 @@ describe("renderHygieneMarkdown", () => {
   });
 
   it("shows congratulations when all checks pass", () => {
-    const report = makeReport([{ name: "All Good", status: "pass", detail: "Excellent" }], "pass");
-    const md = renderHygieneMarkdown(report);
+    const md = renderHygieneMarkdown(
+      makeReport([{ name: "All Good", status: "pass", detail: "Excellent" }], "pass"),
+    );
     expect(md).toContain("All checks passed");
     expect(md).toContain("🎉");
   });
 
   it("shows warn message when checks have warnings but no failures", () => {
-    const report = makeReport(
-      [
-        { name: "README.md", status: "pass", detail: "Present" },
-        { name: "Coverage", status: "warn", detail: "Skipped" },
-      ],
-      "warn",
-    );
-    const md = renderHygieneMarkdown(report);
+    const md = renderHygieneMarkdown(makeReport([passCheck, warnCheck], "warn"));
     expect(md).toContain("1 check(s) skipped or need attention");
     expect(md).not.toContain("All checks passed");
   });

@@ -64,7 +64,7 @@ describe("ScoreRing", () => {
 });
 
 // ---------------------------------------------------------------------------
-// DORACards
+// Shared test fixtures
 // ---------------------------------------------------------------------------
 
 const sampleMetrics: DORAMetrics = {
@@ -73,21 +73,31 @@ const sampleMetrics: DORAMetrics = {
     rating: "Elite",
     source: "deployments_api",
   },
-  leadTimeForChanges: {
-    medianHours: 4.2,
-    rating: "Elite",
-  },
-  changeFailureRate: {
-    percentage: 3,
-    failedRuns: 1,
-    totalRuns: 30,
-    rating: "Elite",
-  },
-  meanTimeToRestore: {
-    medianHours: null,
-    rating: "N/A",
-  },
+  leadTimeForChanges: { medianHours: 4.2, rating: "Elite" },
+  changeFailureRate: { percentage: 3, failedRuns: 1, totalRuns: 30, rating: "Elite" },
+  meanTimeToRestore: { medianHours: null, rating: "N/A" },
 };
+
+const sampleSuggestions: Suggestion[] = [
+  {
+    title: "Add branch protection",
+    description: "Require PR reviews before merging.",
+    category: "security",
+    severity: "high",
+    actionItems: ["Enable branch protection rules", "Require at least 1 review"],
+  },
+  {
+    title: "Reduce lead time",
+    description: "Consider smaller PRs for faster reviews.",
+    category: "performance",
+    severity: "medium",
+    actionItems: ["Break large PRs into smaller ones"],
+  },
+];
+
+// ---------------------------------------------------------------------------
+// DORACards
+// ---------------------------------------------------------------------------
 
 describe("DORACards", () => {
   it("renders all three metric cards", () => {
@@ -129,22 +139,9 @@ describe("DORACards", () => {
 // SuggestionsPanel
 // ---------------------------------------------------------------------------
 
-const sampleSuggestions: Suggestion[] = [
-  {
-    title: "Add branch protection",
-    description: "Require PR reviews before merging.",
-    category: "security",
-    severity: "high",
-    actionItems: ["Enable branch protection rules", "Require at least 1 review"],
-  },
-  {
-    title: "Reduce lead time",
-    description: "Consider smaller PRs for faster reviews.",
-    category: "performance",
-    severity: "medium",
-    actionItems: ["Break large PRs into smaller ones"],
-  },
-];
+// ---------------------------------------------------------------------------
+// SuggestionsPanel
+// ---------------------------------------------------------------------------
 
 describe("SuggestionsPanel", () => {
   it("renders the heading", () => {

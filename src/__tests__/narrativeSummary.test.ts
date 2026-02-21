@@ -227,6 +227,17 @@ describe("generateNarrativeSummary", () => {
     model: "gpt-4o-mini",
   };
 
+  function mockLLMResponse(content: string, overrides: Record<string, unknown> = {}) {
+    return {
+      ok: true,
+      json: async () => ({
+        choices: [{ message: { content } }],
+        model: "gpt-4o-mini",
+        ...overrides,
+      }),
+    };
+  }
+
   afterEach(() => {
     vi.restoreAllMocks();
   });
@@ -238,15 +249,14 @@ describe("generateNarrativeSummary", () => {
   });
 
   it("parses a successful LLM response", async () => {
-    const mockResponse = {
-      ok: true,
-      json: async () => ({
-        choices: [{ message: { content: "This is the executive summary." } }],
-        model: "gpt-4o-mini",
-        usage: { total_tokens: 150 },
-      }),
-    };
-    vi.stubGlobal("fetch", vi.fn().mockResolvedValue(mockResponse));
+    vi.stubGlobal(
+      "fetch",
+      vi
+        .fn()
+        .mockResolvedValue(
+          mockLLMResponse("This is the executive summary.", { usage: { total_tokens: 150 } }),
+        ),
+    );
 
     const result = await generateNarrativeSummary({ analysis: makeAnalysis() }, mockConfig);
 
@@ -257,12 +267,10 @@ describe("generateNarrativeSummary", () => {
   });
 
   it("throws on non-2xx response", async () => {
-    const mockResponse = {
-      ok: false,
-      status: 401,
-      text: async () => "Unauthorized",
-    };
-    vi.stubGlobal("fetch", vi.fn().mockResolvedValue(mockResponse));
+    vi.stubGlobal(
+      "fetch",
+      vi.fn().mockResolvedValue({ ok: false, status: 401, text: async () => "Unauthorized" }),
+    );
 
     await expect(
       generateNarrativeSummary({ analysis: makeAnalysis() }, mockConfig),
@@ -270,14 +278,7 @@ describe("generateNarrativeSummary", () => {
   });
 
   it("throws on empty LLM response", async () => {
-    const mockResponse = {
-      ok: true,
-      json: async () => ({
-        choices: [{ message: { content: "" } }],
-        model: "gpt-4o-mini",
-      }),
-    };
-    vi.stubGlobal("fetch", vi.fn().mockResolvedValue(mockResponse));
+    vi.stubGlobal("fetch", vi.fn().mockResolvedValue(mockLLMResponse("")));
 
     await expect(
       generateNarrativeSummary({ analysis: makeAnalysis() }, mockConfig),
@@ -285,13 +286,7 @@ describe("generateNarrativeSummary", () => {
   });
 
   it("sends correct headers and body to the LLM API", async () => {
-    const fetchMock = vi.fn().mockResolvedValue({
-      ok: true,
-      json: async () => ({
-        choices: [{ message: { content: "Summary text." } }],
-        model: "gpt-4o-mini",
-      }),
-    });
+    const fetchMock = vi.fn().mockResolvedValue(mockLLMResponse("Summary text."));
     vi.stubGlobal("fetch", fetchMock);
 
     await generateNarrativeSummary({ analysis: makeAnalysis() }, mockConfig);

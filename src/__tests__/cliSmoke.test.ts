@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { execSync } from "child_process";
+import { execFileSync } from "child_process";
 import * as path from "path";
 
 // ---------------------------------------------------------------------------
@@ -8,13 +8,15 @@ import * as path from "path";
 // These tests spawn the CLI as a subprocess so they exercise the real entry
 // point (bin/delivery-intel.js → src/cli/index.ts) without needing network
 // access (they never reach the GitHub API).
+//
+// Uses execFileSync (no shell) to avoid command-injection hotspots.
 // ---------------------------------------------------------------------------
 
 const BIN = path.resolve(__dirname, "../../bin/delivery-intel.js");
 
-function run(args: string): { stdout: string; code: number } {
+function run(args: string[]): { stdout: string; code: number } {
   try {
-    const stdout = execSync(`node ${BIN} ${args}`, {
+    const stdout = execFileSync("node", [BIN, ...args], {
       encoding: "utf-8",
       timeout: 15_000,
       env: { ...process.env, NODE_ENV: "test" },
@@ -28,7 +30,7 @@ function run(args: string): { stdout: string; code: number } {
 
 describe("CLI smoke tests", () => {
   it("prints help text when invoked with --help", () => {
-    const { stdout, code } = run("--help");
+    const { stdout, code } = run(["--help"]);
 
     expect(code).toBe(0);
     expect(stdout).toContain("delivery-intel");
@@ -37,7 +39,7 @@ describe("CLI smoke tests", () => {
   });
 
   it("prints help text when invoked with no arguments", () => {
-    const { stdout, code } = run("");
+    const { stdout, code } = run([]);
 
     expect(code).toBe(0);
     expect(stdout).toContain("delivery-intel");
@@ -45,7 +47,7 @@ describe("CLI smoke tests", () => {
   });
 
   it("prints version when invoked with --version", () => {
-    const { stdout, code } = run("--version");
+    const { stdout, code } = run(["--version"]);
 
     expect(code).toBe(0);
     expect(stdout.trim()).toMatch(/^\d+\.\d+\.\d+$/);
@@ -55,15 +57,14 @@ describe("CLI smoke tests", () => {
     // Run without any GitHub token to test auth-failure path
     const result = (() => {
       try {
-        const stdout = execSync(`node ${BIN} owner/repo --no-spinner`, {
+        const stdout = execFileSync("node", [BIN, "owner/repo", "--no-spinner"], {
           encoding: "utf-8",
           timeout: 15_000,
           env: {
-            ...process.env,
             GITHUB_TOKEN: "",
             GH_TOKEN: "",
             NODE_ENV: "test",
-            PATH: "", // Ensure gh CLI is not found
+            HOME: process.env.HOME ?? "",
           },
         });
         return { stdout, code: 0 };
