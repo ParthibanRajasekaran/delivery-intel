@@ -5,17 +5,26 @@
 // so it can be used from the CLI or programmatically.
 // ============================================================================
 
-import { Octokit } from "@octokit/rest";
+import type { Octokit } from "@octokit/rest";
 import { differenceInHours, differenceInCalendarWeeks, parseISO } from "date-fns";
+import { type ParsedDependency, parsePackageJson, parseRequirementsTxt } from "../shared/parsers";
+import { queryOSV, classifySeverity, extractFixedVersion } from "../shared/osv";
+import {
+  type RepoIdentifier,
+  createOctokit,
+  parseRepoSlug,
+  fetchDeployments,
+  fetchMergedPRs,
+  fetchWorkflowRuns,
+  fetchFileContent,
+} from "../shared/github";
 
 // ---------------------------------------------------------------------------
 // Types (self-contained, no @/ alias)
 // ---------------------------------------------------------------------------
 
-export interface RepoIdentifier {
-  owner: string;
-  repo: string;
-}
+export type { RepoIdentifier };
+export { parseRepoSlug };
 
 export interface DORAMetrics {
   deploymentFrequency: {
@@ -68,19 +77,6 @@ export interface AnalysisResult {
 // Helpers
 // ---------------------------------------------------------------------------
 
-export function parseRepoSlug(input: string): RepoIdentifier {
-  const cleaned = input.trim().replace(/\.git$/, "");
-  const urlMatch = cleaned.match(/github\.com\/([A-Za-z0-9_.-]+)\/([A-Za-z0-9_.-]+)/);
-  if (urlMatch) {
-    return { owner: urlMatch[1], repo: urlMatch[2] };
-  }
-  const slugMatch = cleaned.match(/^([A-Za-z0-9_.-]+)\/([A-Za-z0-9_.-]+)$/);
-  if (slugMatch) {
-    return { owner: slugMatch[1], repo: slugMatch[2] };
-  }
-  throw new Error(`Invalid repository: "${input}". Use "owner/repo" or a GitHub URL.`);
-}
-
 function median(values: number[]): number {
   if (values.length === 0) {
     return 0;
@@ -125,64 +121,6 @@ function rateCFR(p: number): string {
     return "Medium";
   }
   return "Low";
-}
-
-// ---------------------------------------------------------------------------
-// GitHub data fetching
-// ---------------------------------------------------------------------------
-
-function createOctokit(token?: string): Octokit {
-  return token ? new Octokit({ auth: token }) : new Octokit();
-}
-
-async function fetchDeployments(octokit: Octokit, id: RepoIdentifier) {
-  const { data } = await octokit.repos.listDeployments({
-    owner: id.owner,
-    repo: id.repo,
-    per_page: 50,
-  });
-  return data;
-}
-
-async function fetchMergedPRs(octokit: Octokit, id: RepoIdentifier) {
-  const { data } = await octokit.pulls.list({
-    owner: id.owner,
-    repo: id.repo,
-    state: "closed",
-    sort: "updated",
-    direction: "desc",
-    per_page: 30,
-  });
-  return data.filter((pr: any) => pr.merged_at !== null);
-}
-
-async function fetchWorkflowRuns(octokit: Octokit, id: RepoIdentifier) {
-  const { data } = await octokit.actions.listWorkflowRunsForRepo({
-    owner: id.owner,
-    repo: id.repo,
-    per_page: 50,
-  });
-  return data.workflow_runs;
-}
-
-async function fetchFileContent(
-  octokit: Octokit,
-  id: RepoIdentifier,
-  path: string,
-): Promise<string | null> {
-  try {
-    const { data } = await octokit.repos.getContent({
-      owner: id.owner,
-      repo: id.repo,
-      path,
-    });
-    if ("content" in data && typeof data.content === "string") {
-      return Buffer.from(data.content, "base64").toString("utf-8");
-    }
-    return null;
-  } catch {
-    return null;
-  }
 }
 
 // ---------------------------------------------------------------------------
@@ -284,65 +222,8 @@ async function computeCFR(
 }
 
 // ---------------------------------------------------------------------------
-// Vulnerability scanning via OSV.dev
+// Vulnerability scanning via OSV.dev (shared parsers + helpers)
 // ---------------------------------------------------------------------------
-
-interface ParsedDep {
-  name: string;
-  version: string;
-  ecosystem: string;
-}
-
-function parsePackageJson(raw: string): ParsedDep[] {
-  try {
-    const pkg = JSON.parse(raw);
-    const deps: ParsedDep[] = [];
-    for (const section of ["dependencies", "devDependencies"] as const) {
-      const map = pkg[section] as Record<string, string> | undefined;
-      if (!map) {
-        continue;
-      }
-      for (const [name, spec] of Object.entries(map)) {
-        deps.push({ name, version: spec.replace(/^[\^~>=<]+/, ""), ecosystem: "npm" });
-      }
-    }
-    return deps;
-  } catch {
-    return [];
-  }
-}
-
-function parseRequirementsTxt(raw: string): ParsedDep[] {
-  const deps: ParsedDep[] = [];
-  for (const line of raw.split("\n")) {
-    const t = line.trim();
-    if (!t || t.startsWith("#")) {
-      continue;
-    }
-    const m = t.match(/^([A-Za-z0-9_.-]+)\s*[=><~!]+\s*([0-9.]+)/);
-    if (m) {
-      deps.push({ name: m[1], version: m[2], ecosystem: "PyPI" });
-    }
-  }
-  return deps;
-}
-
-async function queryOSV(ecosystem: string, name: string, version: string) {
-  try {
-    const res = await fetch("https://api.osv.dev/v1/query", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ version, package: { name, ecosystem } }),
-    });
-    if (!res.ok) {
-      return [];
-    }
-    const data = (await res.json()) as any;
-    return data.vulns || [];
-  } catch {
-    return [];
-  }
-}
 
 async function scanVulnerabilities(
   octokit: Octokit,
@@ -353,7 +234,7 @@ async function scanVulnerabilities(
     fetchFileContent(octokit, id, "requirements.txt"),
   ]);
 
-  const allDeps: ParsedDep[] = [];
+  const allDeps: ParsedDependency[] = [];
   if (pkgJson) {
     allDeps.push(...parsePackageJson(pkgJson));
   }
@@ -373,41 +254,14 @@ async function scanVulnerabilities(
     for (let j = 0; j < batch.length; j++) {
       const dep = batch[j];
       for (const vuln of results[j]) {
-        let fixedVersion: string | null = null;
-        const affected = vuln.affected?.find(
-          (a: any) => a.package.name === dep.name && a.package.ecosystem === dep.ecosystem,
-        );
-        if (affected?.ranges) {
-          for (const range of affected.ranges) {
-            for (const ev of range.events) {
-              if (ev.fixed) {
-                fixedVersion = ev.fixed;
-                break;
-              }
-            }
-          }
-        }
-        let severity = "unknown";
-        if (vuln.severity?.length > 0) {
-          const cvss = parseFloat(vuln.severity[0].score);
-          if (cvss >= 9) {
-            severity = "critical";
-          } else if (cvss >= 7) {
-            severity = "high";
-          } else if (cvss >= 4) {
-            severity = "medium";
-          } else {
-            severity = "low";
-          }
-        }
         vulnerabilities.push({
           packageName: dep.name,
           currentVersion: dep.version,
           vulnId: vuln.id,
           summary: vuln.summary || "No description.",
-          severity,
+          severity: classifySeverity(vuln.severity),
           aliases: vuln.aliases || [],
-          fixedVersion,
+          fixedVersion: extractFixedVersion(vuln.affected, dep),
         });
       }
     }

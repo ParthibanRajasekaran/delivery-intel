@@ -3,8 +3,8 @@
     "target": "ES2020",
     "module": "commonjs",
     "lib": ["ES2020"],
-    "outDir": "./dist/cli",
-    "rootDir": "./src/cli",
+    "outDir": "./dist",
+    "rootDir": "./src",
     "strict": true,
     "esModuleInterop": true,
     "skipLibCheck": true,
@@ -13,5 +13,5 @@
     "declarationMap": true,
     "sourceMap": true
   },
-  "include": ["src/cli/**/*.ts"]
+  "include": ["src/cli/**/*.ts", "src/shared/**/*.ts"]
 }

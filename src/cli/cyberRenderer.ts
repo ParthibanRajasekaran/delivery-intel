@@ -377,7 +377,7 @@ function renderNarrative(narrative: string, model: string): string {
   for (const paragraph of narrative.split("\n\n")) {
     const trimmed = paragraph.trim();
     if (trimmed) {
-      lines.push("  " + trimmed.replace(/\n/g, "\n  "));
+      lines.push("  " + trimmed.replaceAll("\n", "\n  "));
       lines.push("");
     }
   }

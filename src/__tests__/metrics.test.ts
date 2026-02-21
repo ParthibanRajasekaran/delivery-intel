@@ -1,4 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
+import type { GitHubDeployment, GitHubPullRequest, GitHubWorkflowRun } from "@/types";
 
 // ---------------------------------------------------------------------------
 // We test the pure rating functions and the median helper by extracting
@@ -22,8 +23,84 @@ const mocked = vi.mocked;
 
 const REPO = { owner: "test", repo: "repo" };
 
+// ---------------------------------------------------------------------------
+// Factory helpers — eliminate repeated fixture construction
+// ---------------------------------------------------------------------------
+
+let _prSeq = 0;
+
+function makePR(
+  overrides: Partial<GitHubPullRequest> & { created_at: string; merged_at: string },
+): GitHubPullRequest {
+  _prSeq++;
+  return {
+    number: _prSeq,
+    title: `PR ${_prSeq}`,
+    state: "closed",
+    closed_at: overrides.merged_at,
+    user: { login: "dev", avatar_url: "" },
+    head: { ref: `feat-${_prSeq}`, sha: _prSeq.toString(16).padStart(3, "0") },
+    base: { ref: "main" },
+    html_url: "",
+    ...overrides,
+  };
+}
+
+let _runSeq = 0;
+
+function makeRun(overrides: Partial<GitHubWorkflowRun> = {}): GitHubWorkflowRun {
+  _runSeq++;
+  const ts = new Date().toISOString();
+  return {
+    id: _runSeq,
+    name: "CI",
+    status: "completed",
+    conclusion: "success",
+    created_at: ts,
+    updated_at: ts,
+    head_branch: "main",
+    html_url: "",
+    ...overrides,
+  };
+}
+
+let _deploySeq = 0;
+
+function makeDeployment(overrides: Partial<GitHubDeployment> = {}): GitHubDeployment {
+  _deploySeq++;
+  const ts = new Date().toISOString();
+  return {
+    id: _deploySeq,
+    created_at: ts,
+    updated_at: ts,
+    environment: "production",
+    sha: _deploySeq.toString(16).padStart(3, "0"),
+    ref: "main",
+    task: "deploy",
+    description: null,
+    statuses_url: "",
+    ...overrides,
+  };
+}
+
+/** Set all three fetcher mocks at once; defaults to empty arrays. */
+function mockGitHub(
+  opts: {
+    deployments?: GitHubDeployment[];
+    prs?: GitHubPullRequest[];
+    runs?: GitHubWorkflowRun[];
+  } = {},
+) {
+  mocked(github.fetchDeployments).mockResolvedValue(opts.deployments ?? []);
+  mocked(github.fetchMergedPullRequests).mockResolvedValue(opts.prs ?? []);
+  mocked(github.fetchWorkflowRuns).mockResolvedValue(opts.runs ?? []);
+}
+
 beforeEach(() => {
   vi.clearAllMocks();
+  _prSeq = 0;
+  _runSeq = 0;
+  _deploySeq = 0;
 });
 
 // =========================================================================
@@ -35,32 +112,15 @@ describe("Deployment Frequency", () => {
     const now = new Date();
     const twoWeeksAgo = new Date(now.getTime() - 14 * 24 * 60 * 60 * 1000);
 
-    mocked(github.fetchDeployments).mockResolvedValue([
-      {
-        id: 1,
-        created_at: now.toISOString(),
-        updated_at: now.toISOString(),
-        environment: "production",
-        sha: "abc",
-        ref: "main",
-        task: "deploy",
-        description: null,
-        statuses_url: "",
-      },
-      {
-        id: 2,
-        created_at: twoWeeksAgo.toISOString(),
-        updated_at: twoWeeksAgo.toISOString(),
-        environment: "production",
-        sha: "def",
-        ref: "main",
-        task: "deploy",
-        description: null,
-        statuses_url: "",
-      },
-    ]);
-    mocked(github.fetchMergedPullRequests).mockResolvedValue([]);
-    mocked(github.fetchWorkflowRuns).mockResolvedValue([]);
+    mockGitHub({
+      deployments: [
+        makeDeployment({ created_at: now.toISOString(), updated_at: now.toISOString() }),
+        makeDeployment({
+          created_at: twoWeeksAgo.toISOString(),
+          updated_at: twoWeeksAgo.toISOString(),
+        }),
+      ],
+    });
 
     const result = await computeDORAMetrics(REPO);
 
@@ -72,34 +132,12 @@ describe("Deployment Frequency", () => {
     const now = new Date();
     const oneWeekAgo = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
 
-    mocked(github.fetchDeployments).mockResolvedValue([]);
-    mocked(github.fetchMergedPullRequests).mockResolvedValue([
-      {
-        number: 1,
-        title: "PR 1",
-        state: "closed",
-        created_at: oneWeekAgo.toISOString(),
-        merged_at: now.toISOString(),
-        closed_at: now.toISOString(),
-        user: { login: "user1", avatar_url: "" },
-        head: { ref: "feat-1", sha: "aaa" },
-        base: { ref: "main" },
-        html_url: "",
-      },
-      {
-        number: 2,
-        title: "PR 2",
-        state: "closed",
-        created_at: oneWeekAgo.toISOString(),
-        merged_at: oneWeekAgo.toISOString(),
-        closed_at: oneWeekAgo.toISOString(),
-        user: { login: "user2", avatar_url: "" },
-        head: { ref: "feat-2", sha: "bbb" },
-        base: { ref: "main" },
-        html_url: "",
-      },
-    ]);
-    mocked(github.fetchWorkflowRuns).mockResolvedValue([]);
+    mockGitHub({
+      prs: [
+        makePR({ created_at: oneWeekAgo.toISOString(), merged_at: now.toISOString() }),
+        makePR({ created_at: oneWeekAgo.toISOString(), merged_at: oneWeekAgo.toISOString() }),
+      ],
+    });
 
     const result = await computeDORAMetrics(REPO);
 
@@ -108,9 +146,7 @@ describe("Deployment Frequency", () => {
   });
 
   it("returns Low rating when no data available", async () => {
-    mocked(github.fetchDeployments).mockResolvedValue([]);
-    mocked(github.fetchMergedPullRequests).mockResolvedValue([]);
-    mocked(github.fetchWorkflowRuns).mockResolvedValue([]);
+    mockGitHub();
 
     const result = await computeDORAMetrics(REPO);
 
@@ -128,22 +164,9 @@ describe("Lead Time for Changes", () => {
     const now = new Date();
     const dayAgo = new Date(now.getTime() - 24 * 60 * 60 * 1000);
 
-    mocked(github.fetchDeployments).mockResolvedValue([]);
-    mocked(github.fetchMergedPullRequests).mockResolvedValue([
-      {
-        number: 1,
-        title: "Fast PR",
-        state: "closed",
-        created_at: dayAgo.toISOString(),
-        merged_at: now.toISOString(),
-        closed_at: now.toISOString(),
-        user: { login: "dev", avatar_url: "" },
-        head: { ref: "feat", sha: "aaa" },
-        base: { ref: "main" },
-        html_url: "",
-      },
-    ]);
-    mocked(github.fetchWorkflowRuns).mockResolvedValue([]);
+    mockGitHub({
+      prs: [makePR({ created_at: dayAgo.toISOString(), merged_at: now.toISOString() })],
+    });
 
     const result = await computeDORAMetrics(REPO);
 
@@ -156,22 +179,9 @@ describe("Lead Time for Changes", () => {
     const now = new Date();
     const fourHoursAgo = new Date(now.getTime() - 4 * 60 * 60 * 1000);
 
-    mocked(github.fetchDeployments).mockResolvedValue([]);
-    mocked(github.fetchMergedPullRequests).mockResolvedValue([
-      {
-        number: 1,
-        title: "Quick PR",
-        state: "closed",
-        created_at: fourHoursAgo.toISOString(),
-        merged_at: now.toISOString(),
-        closed_at: now.toISOString(),
-        user: { login: "dev", avatar_url: "" },
-        head: { ref: "feat", sha: "aaa" },
-        base: { ref: "main" },
-        html_url: "",
-      },
-    ]);
-    mocked(github.fetchWorkflowRuns).mockResolvedValue([]);
+    mockGitHub({
+      prs: [makePR({ created_at: fourHoursAgo.toISOString(), merged_at: now.toISOString() })],
+    });
 
     const result = await computeDORAMetrics(REPO);
 
@@ -179,9 +189,7 @@ describe("Lead Time for Changes", () => {
   });
 
   it("returns N/A rating when no merged PRs exist", async () => {
-    mocked(github.fetchDeployments).mockResolvedValue([]);
-    mocked(github.fetchMergedPullRequests).mockResolvedValue([]);
-    mocked(github.fetchWorkflowRuns).mockResolvedValue([]);
+    mockGitHub();
 
     const result = await computeDORAMetrics(REPO);
 
@@ -196,50 +204,9 @@ describe("Lead Time for Changes", () => {
 
 describe("Change Failure Rate", () => {
   it("computes failure percentage from completed workflow runs", async () => {
-    mocked(github.fetchDeployments).mockResolvedValue([]);
-    mocked(github.fetchMergedPullRequests).mockResolvedValue([]);
-    mocked(github.fetchWorkflowRuns).mockResolvedValue([
-      {
-        id: 1,
-        name: "CI",
-        status: "completed",
-        conclusion: "success",
-        created_at: new Date().toISOString(),
-        updated_at: new Date().toISOString(),
-        head_branch: "main",
-        html_url: "",
-      },
-      {
-        id: 2,
-        name: "CI",
-        status: "completed",
-        conclusion: "failure",
-        created_at: new Date().toISOString(),
-        updated_at: new Date().toISOString(),
-        head_branch: "main",
-        html_url: "",
-      },
-      {
-        id: 3,
-        name: "CI",
-        status: "completed",
-        conclusion: "success",
-        created_at: new Date().toISOString(),
-        updated_at: new Date().toISOString(),
-        head_branch: "main",
-        html_url: "",
-      },
-      {
-        id: 4,
-        name: "CI",
-        status: "completed",
-        conclusion: "success",
-        created_at: new Date().toISOString(),
-        updated_at: new Date().toISOString(),
-        head_branch: "main",
-        html_url: "",
-      },
-    ]);
+    mockGitHub({
+      runs: [makeRun(), makeRun({ conclusion: "failure" }), makeRun(), makeRun()],
+    });
 
     const result = await computeDORAMetrics(REPO);
 
@@ -250,30 +217,9 @@ describe("Change Failure Rate", () => {
   });
 
   it("ignores in-progress runs", async () => {
-    mocked(github.fetchDeployments).mockResolvedValue([]);
-    mocked(github.fetchMergedPullRequests).mockResolvedValue([]);
-    mocked(github.fetchWorkflowRuns).mockResolvedValue([
-      {
-        id: 1,
-        name: "CI",
-        status: "completed",
-        conclusion: "success",
-        created_at: new Date().toISOString(),
-        updated_at: new Date().toISOString(),
-        head_branch: "main",
-        html_url: "",
-      },
-      {
-        id: 2,
-        name: "CI",
-        status: "in_progress",
-        conclusion: null,
-        created_at: new Date().toISOString(),
-        updated_at: new Date().toISOString(),
-        head_branch: "main",
-        html_url: "",
-      },
-    ]);
+    mockGitHub({
+      runs: [makeRun(), makeRun({ status: "in_progress", conclusion: null })],
+    });
 
     const result = await computeDORAMetrics(REPO);
 
@@ -282,14 +228,182 @@ describe("Change Failure Rate", () => {
   });
 
   it("returns N/A when no runs exist", async () => {
-    mocked(github.fetchDeployments).mockResolvedValue([]);
-    mocked(github.fetchMergedPullRequests).mockResolvedValue([]);
-    mocked(github.fetchWorkflowRuns).mockResolvedValue([]);
+    mockGitHub();
 
     const result = await computeDORAMetrics(REPO);
 
     expect(result.changeFailureRate.rating).toBe("N/A");
     expect(result.changeFailureRate.percentage).toBe(0);
+  });
+
+  it("returns N/A when all runs are in-progress", async () => {
+    mockGitHub({
+      runs: [
+        makeRun({ status: "in_progress", conclusion: null }),
+        makeRun({ status: "queued", conclusion: null }),
+      ],
+    });
+
+    const result = await computeDORAMetrics(REPO);
+
+    expect(result.changeFailureRate.rating).toBe("N/A");
+    expect(result.changeFailureRate.totalRuns).toBe(0);
+  });
+
+  it("rates Elite for ≤5% failure rate", async () => {
+    mockGitHub({
+      runs: Array.from({ length: 20 }, () => makeRun()),
+    });
+
+    const result = await computeDORAMetrics(REPO);
+
+    expect(result.changeFailureRate.percentage).toBe(0);
+    expect(result.changeFailureRate.rating).toBe("Elite");
+  });
+
+  it("rates High for 6-10% failure rate", async () => {
+    mockGitHub({
+      runs: [...Array.from({ length: 9 }, () => makeRun()), makeRun({ conclusion: "failure" })],
+    });
+
+    const result = await computeDORAMetrics(REPO);
+
+    expect(result.changeFailureRate.percentage).toBe(10);
+    expect(result.changeFailureRate.rating).toBe("High");
+  });
+
+  it("rates Medium for 11-15% failure rate", async () => {
+    // 2 failures out of 15 = 13.3%
+    mockGitHub({
+      runs: [
+        ...Array.from({ length: 13 }, () => makeRun()),
+        makeRun({ conclusion: "failure" }),
+        makeRun({ conclusion: "failure" }),
+      ],
+    });
+
+    const result = await computeDORAMetrics(REPO);
+
+    expect(result.changeFailureRate.rating).toBe("Medium");
+  });
+});
+
+// =========================================================================
+// Mean Time to Restore (MTTR)
+// =========================================================================
+
+describe("Mean Time to Restore", () => {
+  it("computes MTTR when a failure is followed by a success on the same branch", async () => {
+    const t0 = new Date("2026-02-20T10:00:00Z");
+    const t1 = new Date("2026-02-20T12:00:00Z"); // 2 hours later
+
+    mockGitHub({
+      runs: [
+        makeRun({
+          conclusion: "failure",
+          created_at: t0.toISOString(),
+          head_branch: "main",
+        }),
+        makeRun({
+          conclusion: "success",
+          created_at: t1.toISOString(),
+          head_branch: "main",
+        }),
+      ],
+    });
+
+    const result = await computeDORAMetrics(REPO);
+
+    expect(result.meanTimeToRestore.medianHours).toBe(2);
+    expect(result.meanTimeToRestore.rating).toBe("High"); // < 24h
+  });
+
+  it("returns N/A when no failures exist", async () => {
+    mockGitHub({
+      runs: [makeRun(), makeRun()],
+    });
+
+    const result = await computeDORAMetrics(REPO);
+
+    expect(result.meanTimeToRestore.medianHours).toBeNull();
+    expect(result.meanTimeToRestore.rating).toBe("N/A");
+  });
+
+  it("returns N/A when failures exist but no recovery follows", async () => {
+    mockGitHub({
+      runs: [makeRun({ conclusion: "failure", head_branch: "main" })],
+    });
+
+    const result = await computeDORAMetrics(REPO);
+
+    expect(result.meanTimeToRestore.medianHours).toBeNull();
+    expect(result.meanTimeToRestore.rating).toBe("N/A");
+  });
+
+  it("rates Elite when restoration is under 1 hour", async () => {
+    const t0 = new Date("2026-02-20T10:00:00Z");
+    const t1 = new Date("2026-02-20T10:30:00Z"); // 30 min
+
+    mockGitHub({
+      runs: [
+        makeRun({ conclusion: "failure", created_at: t0.toISOString(), head_branch: "main" }),
+        makeRun({ conclusion: "success", created_at: t1.toISOString(), head_branch: "main" }),
+      ],
+    });
+
+    const result = await computeDORAMetrics(REPO);
+
+    expect(result.meanTimeToRestore.rating).toBe("Elite");
+  });
+
+  it("rates Medium when restoration takes days", async () => {
+    const t0 = new Date("2026-02-17T10:00:00Z");
+    const t1 = new Date("2026-02-20T10:00:00Z"); // 72 hours
+
+    mockGitHub({
+      runs: [
+        makeRun({ conclusion: "failure", created_at: t0.toISOString(), head_branch: "main" }),
+        makeRun({ conclusion: "success", created_at: t1.toISOString(), head_branch: "main" }),
+      ],
+    });
+
+    const result = await computeDORAMetrics(REPO);
+
+    expect(result.meanTimeToRestore.rating).toBe("Medium");
+  });
+
+  it("rates Low when restoration takes over a week", async () => {
+    const t0 = new Date("2026-02-10T10:00:00Z");
+    const t1 = new Date("2026-02-20T10:00:00Z"); // 10 days = 240 hours
+
+    mockGitHub({
+      runs: [
+        makeRun({ conclusion: "failure", created_at: t0.toISOString(), head_branch: "main" }),
+        makeRun({ conclusion: "success", created_at: t1.toISOString(), head_branch: "main" }),
+      ],
+    });
+
+    const result = await computeDORAMetrics(REPO);
+
+    expect(result.meanTimeToRestore.rating).toBe("Low");
+  });
+
+  it("ignores recovery on a different branch", async () => {
+    const t0 = new Date("2026-02-20T10:00:00Z");
+    const t1 = new Date("2026-02-20T12:00:00Z");
+
+    mockGitHub({
+      runs: [
+        makeRun({ conclusion: "failure", created_at: t0.toISOString(), head_branch: "main" }),
+        makeRun({ conclusion: "success", created_at: t1.toISOString(), head_branch: "feature" }),
+      ],
+    });
+
+    const result = await computeDORAMetrics(REPO);
+
+    // No same-branch recovery → N/A
+    expect(result.meanTimeToRestore.medianHours).toBeNull();
+    expect(result.meanTimeToRestore.rating).toBe("N/A");
   });
 });
 
@@ -299,9 +413,7 @@ describe("Change Failure Rate", () => {
 
 describe("computeDORAMetrics", () => {
   it("returns all four metric categories", async () => {
-    mocked(github.fetchDeployments).mockResolvedValue([]);
-    mocked(github.fetchMergedPullRequests).mockResolvedValue([]);
-    mocked(github.fetchWorkflowRuns).mockResolvedValue([]);
+    mockGitHub();
 
     const result = await computeDORAMetrics(REPO);
 
@@ -312,10 +424,7 @@ describe("computeDORAMetrics", () => {
   });
 
   it("runs all metrics in parallel (performance)", async () => {
-    // Verify all three fetchers are called without waiting for each other
-    mocked(github.fetchDeployments).mockResolvedValue([]);
-    mocked(github.fetchMergedPullRequests).mockResolvedValue([]);
-    mocked(github.fetchWorkflowRuns).mockResolvedValue([]);
+    mockGitHub();
 
     await computeDORAMetrics(REPO);
 

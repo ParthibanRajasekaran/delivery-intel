@@ -20,7 +20,8 @@ WORKDIR /app
 # Stage 1: Install dependencies
 # ---------------------------------------------------------------------------
 FROM base AS deps
-COPY package.json package-lock.json* ./
+COPY package.json ./
+COPY package-lock.json ./
 RUN npm ci --ignore-scripts 2>/dev/null || npm install --ignore-scripts
 
 # ---------------------------------------------------------------------------

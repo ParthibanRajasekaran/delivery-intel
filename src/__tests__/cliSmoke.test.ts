@@ -1,7 +1,7 @@
 import { describe, it, expect } from "vitest";
-import { execFileSync } from "child_process";
-import * as fs from "fs";
-import * as path from "path";
+import { execFileSync } from "node:child_process";
+import * as fs from "node:fs";
+import * as path from "node:path";
 
 // ---------------------------------------------------------------------------
 // CLI smoke tests — verifies: help output, version flag, missing-repo error

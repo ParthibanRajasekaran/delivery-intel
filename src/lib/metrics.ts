@@ -227,17 +227,18 @@ async function _computeMTTR(id: RepoIdentifier): Promise<DORAMetrics["meanTimeTo
 // ---------------------------------------------------------------------------
 
 export async function computeDORAMetrics(id: RepoIdentifier): Promise<DORAMetrics> {
-  const [deploymentFrequency, leadTimeForChanges, changeFailureRate] = await Promise.all([
-    computeDeploymentFrequency(id),
-    computeLeadTime(id),
-    computeChangeFailureRate(id),
-  ]);
+  const [deploymentFrequency, leadTimeForChanges, changeFailureRate, meanTimeToRestore] =
+    await Promise.all([
+      computeDeploymentFrequency(id),
+      computeLeadTime(id),
+      computeChangeFailureRate(id),
+      _computeMTTR(id),
+    ]);
 
   return {
     deploymentFrequency,
     leadTimeForChanges,
     changeFailureRate,
-    // MTTR is kept in the type for completeness but not actively computed
-    meanTimeToRestore: { medianHours: null, rating: "N/A" as const },
+    meanTimeToRestore,
   };
 }
