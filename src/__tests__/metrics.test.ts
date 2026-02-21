@@ -293,24 +293,18 @@ describe("Change Failure Rate", () => {
 // =========================================================================
 
 describe("Mean Time to Restore", () => {
-  it("computes MTTR when a failure is followed by a success on the same branch", async () => {
-    const t0 = new Date("2026-02-20T10:00:00Z");
-    const t1 = new Date("2026-02-20T12:00:00Z"); // 2 hours later
-
+  /** Helper: set up a failure→success pair on the given branch with the given gap. */
+  function setupMTTR(failTime: string, successTime: string, branch = "main") {
     mockGitHub({
       runs: [
-        makeRun({
-          conclusion: "failure",
-          created_at: t0.toISOString(),
-          head_branch: "main",
-        }),
-        makeRun({
-          conclusion: "success",
-          created_at: t1.toISOString(),
-          head_branch: "main",
-        }),
+        makeRun({ conclusion: "failure", created_at: failTime, head_branch: branch }),
+        makeRun({ conclusion: "success", created_at: successTime, head_branch: branch }),
       ],
     });
+  }
+
+  it("computes MTTR when a failure is followed by a success on the same branch", async () => {
+    setupMTTR("2026-02-20T10:00:00Z", "2026-02-20T12:00:00Z");
 
     const result = await computeDORAMetrics(REPO);
 
@@ -319,9 +313,7 @@ describe("Mean Time to Restore", () => {
   });
 
   it("returns N/A when no failures exist", async () => {
-    mockGitHub({
-      runs: [makeRun(), makeRun()],
-    });
+    mockGitHub({ runs: [makeRun(), makeRun()] });
 
     const result = await computeDORAMetrics(REPO);
 
@@ -330,9 +322,7 @@ describe("Mean Time to Restore", () => {
   });
 
   it("returns N/A when failures exist but no recovery follows", async () => {
-    mockGitHub({
-      runs: [makeRun({ conclusion: "failure", head_branch: "main" })],
-    });
+    mockGitHub({ runs: [makeRun({ conclusion: "failure", head_branch: "main" })] });
 
     const result = await computeDORAMetrics(REPO);
 
@@ -341,67 +331,44 @@ describe("Mean Time to Restore", () => {
   });
 
   it("rates Elite when restoration is under 1 hour", async () => {
-    const t0 = new Date("2026-02-20T10:00:00Z");
-    const t1 = new Date("2026-02-20T10:30:00Z"); // 30 min
-
-    mockGitHub({
-      runs: [
-        makeRun({ conclusion: "failure", created_at: t0.toISOString(), head_branch: "main" }),
-        makeRun({ conclusion: "success", created_at: t1.toISOString(), head_branch: "main" }),
-      ],
-    });
+    setupMTTR("2026-02-20T10:00:00Z", "2026-02-20T10:30:00Z"); // 30 min
 
     const result = await computeDORAMetrics(REPO);
-
     expect(result.meanTimeToRestore.rating).toBe("Elite");
   });
 
   it("rates Medium when restoration takes days", async () => {
-    const t0 = new Date("2026-02-17T10:00:00Z");
-    const t1 = new Date("2026-02-20T10:00:00Z"); // 72 hours
-
-    mockGitHub({
-      runs: [
-        makeRun({ conclusion: "failure", created_at: t0.toISOString(), head_branch: "main" }),
-        makeRun({ conclusion: "success", created_at: t1.toISOString(), head_branch: "main" }),
-      ],
-    });
+    setupMTTR("2026-02-17T10:00:00Z", "2026-02-20T10:00:00Z"); // 72 hours
 
     const result = await computeDORAMetrics(REPO);
-
     expect(result.meanTimeToRestore.rating).toBe("Medium");
   });
 
   it("rates Low when restoration takes over a week", async () => {
-    const t0 = new Date("2026-02-10T10:00:00Z");
-    const t1 = new Date("2026-02-20T10:00:00Z"); // 10 days = 240 hours
-
-    mockGitHub({
-      runs: [
-        makeRun({ conclusion: "failure", created_at: t0.toISOString(), head_branch: "main" }),
-        makeRun({ conclusion: "success", created_at: t1.toISOString(), head_branch: "main" }),
-      ],
-    });
+    setupMTTR("2026-02-10T10:00:00Z", "2026-02-20T10:00:00Z"); // 10 days
 
     const result = await computeDORAMetrics(REPO);
-
     expect(result.meanTimeToRestore.rating).toBe("Low");
   });
 
   it("ignores recovery on a different branch", async () => {
-    const t0 = new Date("2026-02-20T10:00:00Z");
-    const t1 = new Date("2026-02-20T12:00:00Z");
-
     mockGitHub({
       runs: [
-        makeRun({ conclusion: "failure", created_at: t0.toISOString(), head_branch: "main" }),
-        makeRun({ conclusion: "success", created_at: t1.toISOString(), head_branch: "feature" }),
+        makeRun({
+          conclusion: "failure",
+          created_at: "2026-02-20T10:00:00Z",
+          head_branch: "main",
+        }),
+        makeRun({
+          conclusion: "success",
+          created_at: "2026-02-20T12:00:00Z",
+          head_branch: "feature",
+        }),
       ],
     });
 
     const result = await computeDORAMetrics(REPO);
 
-    // No same-branch recovery → N/A
     expect(result.meanTimeToRestore.medianHours).toBeNull();
     expect(result.meanTimeToRestore.rating).toBe("N/A");
   });

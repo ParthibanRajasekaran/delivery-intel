@@ -8,7 +8,7 @@
 import type { Octokit } from "@octokit/rest";
 import { differenceInHours, differenceInCalendarWeeks, parseISO } from "date-fns";
 import { type ParsedDependency, parsePackageJson, parseRequirementsTxt } from "../shared/parsers";
-import { queryOSV, classifySeverity, extractFixedVersion } from "../shared/osv";
+import { scanDependencies } from "../shared/scanner";
 import {
   type RepoIdentifier,
   createOctokit,
@@ -222,7 +222,7 @@ async function computeCFR(
 }
 
 // ---------------------------------------------------------------------------
-// Vulnerability scanning via OSV.dev (shared parsers + helpers)
+// Vulnerability scanning via OSV.dev (shared scanner)
 // ---------------------------------------------------------------------------
 
 async function scanVulnerabilities(
@@ -241,32 +241,8 @@ async function scanVulnerabilities(
   if (reqTxt) {
     allDeps.push(...parseRequirementsTxt(reqTxt));
   }
-  if (allDeps.length === 0) {
-    return [];
-  }
 
-  const vulnerabilities: DependencyVulnerability[] = [];
-  const BATCH = 10;
-
-  for (let i = 0; i < allDeps.length; i += BATCH) {
-    const batch = allDeps.slice(i, i + BATCH);
-    const results = await Promise.all(batch.map((d) => queryOSV(d.ecosystem, d.name, d.version)));
-    for (let j = 0; j < batch.length; j++) {
-      const dep = batch[j];
-      for (const vuln of results[j]) {
-        vulnerabilities.push({
-          packageName: dep.name,
-          currentVersion: dep.version,
-          vulnId: vuln.id,
-          summary: vuln.summary || "No description.",
-          severity: classifySeverity(vuln.severity),
-          aliases: vuln.aliases || [],
-          fixedVersion: extractFixedVersion(vuln.affected, dep),
-        });
-      }
-    }
-  }
-  return vulnerabilities;
+  return scanDependencies(allDeps);
 }
 
 // ---------------------------------------------------------------------------

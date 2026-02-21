@@ -1,4 +1,4 @@
-import { describe, it, expect, vi } from "vitest";
+import { describe, it, expect, vi, beforeEach } from "vitest";
 import { render, screen } from "@testing-library/react";
 
 // ---------------------------------------------------------------------------
@@ -100,23 +100,23 @@ const sampleSuggestions: Suggestion[] = [
 // ---------------------------------------------------------------------------
 
 describe("DORACards", () => {
-  it("renders all three metric cards", () => {
+  beforeEach(() => {
     render(<DORACards metrics={sampleMetrics} />);
+  });
 
+  it("renders all three metric cards", () => {
     expect(screen.getByText("Deploy Frequency")).toBeTruthy();
     expect(screen.getByText("Lead Time")).toBeTruthy();
     expect(screen.getByText("Change Failure Rate")).toBeTruthy();
   });
 
   it("renders the Elite rating badge", () => {
-    render(<DORACards metrics={sampleMetrics} />);
     const eliteBadges = screen.getAllByText("Elite");
     expect(eliteBadges.length).toBeGreaterThanOrEqual(1);
   });
 
   it("renders N/A rating when applicable", () => {
-    // Use the sample metrics which already have N/A for meanTimeToRestore
-    // Instead test CFR with N/A
+    // Re-render with modified metrics for this specific case
     const naMetrics: DORAMetrics = {
       ...sampleMetrics,
       leadTimeForChanges: {
@@ -129,7 +129,6 @@ describe("DORACards", () => {
   });
 
   it("renders deployment frequency value", () => {
-    render(<DORACards metrics={sampleMetrics} />);
     expect(screen.getByText("5")).toBeTruthy();
     expect(screen.getByText("/ week")).toBeTruthy();
   });
@@ -139,30 +138,26 @@ describe("DORACards", () => {
 // SuggestionsPanel
 // ---------------------------------------------------------------------------
 
-// ---------------------------------------------------------------------------
-// SuggestionsPanel
-// ---------------------------------------------------------------------------
-
 describe("SuggestionsPanel", () => {
-  it("renders the heading", () => {
+  beforeEach(() => {
     render(<SuggestionsPanel suggestions={sampleSuggestions} />);
+  });
+
+  it("renders the heading", () => {
     expect(screen.getByText("Improvement Suggestions")).toBeTruthy();
   });
 
   it("renders all suggestions", () => {
-    render(<SuggestionsPanel suggestions={sampleSuggestions} />);
     expect(screen.getByText("Add branch protection")).toBeTruthy();
     expect(screen.getByText("Reduce lead time")).toBeTruthy();
   });
 
   it("renders suggestion severity badges", () => {
-    render(<SuggestionsPanel suggestions={sampleSuggestions} />);
     expect(screen.getByText("high")).toBeTruthy();
     expect(screen.getByText("medium")).toBeTruthy();
   });
 
   it("renders action items", () => {
-    render(<SuggestionsPanel suggestions={sampleSuggestions} />);
     expect(screen.getByText("Enable branch protection rules")).toBeTruthy();
     expect(screen.getByText("Require at least 1 review")).toBeTruthy();
   });

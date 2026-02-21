@@ -248,7 +248,7 @@ describe("writeStepSummary", () => {
   });
 
   it("returns true and writes file when GITHUB_STEP_SUMMARY is set", () => {
-    process.env.GITHUB_STEP_SUMMARY = "/tmp/step-summary-test.md";
+    process.env.GITHUB_STEP_SUMMARY = "step-summary-test.md";
     const mock = vi.mocked(fs.appendFileSync);
     mock.mockImplementation(() => {});
 
@@ -257,7 +257,7 @@ describe("writeStepSummary", () => {
   });
 
   it("returns false when fs.appendFileSync throws", () => {
-    process.env.GITHUB_STEP_SUMMARY = "/tmp/step-summary-test.md";
+    process.env.GITHUB_STEP_SUMMARY = "step-summary-test.md";
     vi.mocked(fs.appendFileSync).mockImplementation(() => {
       throw new Error("EACCES");
     });

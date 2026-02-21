@@ -109,47 +109,49 @@ describe("loadLLMConfig", () => {
 // buildUserPrompt
 // ---------------------------------------------------------------------------
 describe("buildUserPrompt", () => {
+  const analysis = makeAnalysis();
+
   it("includes repo name", () => {
-    const prompt = buildUserPrompt({ analysis: makeAnalysis() });
+    const prompt = buildUserPrompt({ analysis });
     expect(prompt).toContain("acme/widget");
   });
 
   it("includes DORA metrics JSON", () => {
-    const prompt = buildUserPrompt({ analysis: makeAnalysis() });
+    const prompt = buildUserPrompt({ analysis });
     expect(prompt).toContain("deploymentFrequency");
     expect(prompt).toContain("leadTimeForChanges");
     expect(prompt).toContain("changeFailureRate");
   });
 
   it("includes overall score", () => {
-    const prompt = buildUserPrompt({ analysis: makeAnalysis() });
+    const prompt = buildUserPrompt({ analysis });
     expect(prompt).toContain("72/100");
   });
 
   it("includes vulnerability summary when present", () => {
-    const prompt = buildUserPrompt({ analysis: makeAnalysis() });
+    const prompt = buildUserPrompt({ analysis });
     expect(prompt).toContain("Vulnerabilities");
     expect(prompt).toContain("1 dependency vulnerability");
   });
 
   it("includes suggestions when present", () => {
-    const prompt = buildUserPrompt({ analysis: makeAnalysis() });
+    const prompt = buildUserPrompt({ analysis });
     expect(prompt).toContain("Update lodash");
   });
 
   it("includes risk data when provided", () => {
-    const prompt = buildUserPrompt({ analysis: makeAnalysis(), risk: makeRisk() });
+    const prompt = buildUserPrompt({ analysis, risk: makeRisk() });
     expect(prompt).toContain("Burnout Risk Score");
     expect(prompt).toContain("22/100");
   });
 
   it("excludes risk section when not provided", () => {
-    const prompt = buildUserPrompt({ analysis: makeAnalysis() });
+    const prompt = buildUserPrompt({ analysis });
     expect(prompt).not.toContain("Burnout Risk Score");
   });
 
   it("includes daily deployments", () => {
-    const prompt = buildUserPrompt({ analysis: makeAnalysis() });
+    const prompt = buildUserPrompt({ analysis });
     expect(prompt).toContain("2, 3, 1, 4, 2, 5, 3");
   });
 });
@@ -220,23 +222,24 @@ describe("generateFallbackNarrative", () => {
 // ---------------------------------------------------------------------------
 // generateNarrativeSummary (with mocked fetch)
 // ---------------------------------------------------------------------------
+
+function mockLLMResponse(content: string, overrides: Record<string, unknown> = {}) {
+  return {
+    ok: true,
+    json: async () => ({
+      choices: [{ message: { content } }],
+      model: "gpt-4o-mini",
+      ...overrides,
+    }),
+  };
+}
+
 describe("generateNarrativeSummary", () => {
   const mockConfig = {
     apiKey: "sk-test",
     baseUrl: "https://api.example.com/v1",
     model: "gpt-4o-mini",
   };
-
-  function mockLLMResponse(content: string, overrides: Record<string, unknown> = {}) {
-    return {
-      ok: true,
-      json: async () => ({
-        choices: [{ message: { content } }],
-        model: "gpt-4o-mini",
-        ...overrides,
-      }),
-    };
-  }
 
   afterEach(() => {
     vi.restoreAllMocks();
