@@ -247,8 +247,16 @@ export function generateFallbackNarrative(input: NarrativeInput): string {
   lines.push("");
 
   // DORA summary
+  const leadTimeText =
+    doraMetrics.leadTimeForChanges.rating === "N/A"
+      ? "no lead time data available"
+      : `a median lead time of ${doraMetrics.leadTimeForChanges.medianHours.toFixed(1)} hours (${doraMetrics.leadTimeForChanges.rating})`;
+  const cfrText =
+    doraMetrics.changeFailureRate.rating === "N/A"
+      ? "no CI run data available"
+      : `${doraMetrics.changeFailureRate.percentage.toFixed(1)}% (${doraMetrics.changeFailureRate.rating})`;
   lines.push(
-    `The team is deploying ${doraMetrics.deploymentFrequency.deploymentsPerWeek.toFixed(1)} times per week (${doraMetrics.deploymentFrequency.rating}) with a median lead time of ${doraMetrics.leadTimeForChanges.medianHours.toFixed(1)} hours (${doraMetrics.leadTimeForChanges.rating}). The change failure rate sits at ${doraMetrics.changeFailureRate.percentage.toFixed(1)}% (${doraMetrics.changeFailureRate.rating}).`,
+    `The team is deploying ${doraMetrics.deploymentFrequency.deploymentsPerWeek.toFixed(1)} times per week (${doraMetrics.deploymentFrequency.rating}) with ${leadTimeText}. The change failure rate sits at ${cfrText}.`,
   );
   lines.push("");
 

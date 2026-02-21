@@ -154,13 +154,13 @@ export interface DORAMetrics {
   };
   leadTimeForChanges: {
     medianHours: number;
-    rating: "Elite" | "High" | "Medium" | "Low";
+    rating: "Elite" | "High" | "Medium" | "Low" | "N/A";
   };
   changeFailureRate: {
     percentage: number;
     failedRuns: number;
     totalRuns: number;
-    rating: "Elite" | "High" | "Medium" | "Low";
+    rating: "Elite" | "High" | "Medium" | "Low" | "N/A";
   };
   meanTimeToRestore: {
     medianHours: number | null; // null if no failures found

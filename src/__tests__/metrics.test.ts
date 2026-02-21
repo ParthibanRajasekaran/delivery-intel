@@ -177,6 +177,17 @@ describe("Lead Time for Changes", () => {
 
     expect(result.leadTimeForChanges.rating).toBe("Elite");
   });
+
+  it("returns N/A rating when no merged PRs exist", async () => {
+    mocked(github.fetchDeployments).mockResolvedValue([]);
+    mocked(github.fetchMergedPullRequests).mockResolvedValue([]);
+    mocked(github.fetchWorkflowRuns).mockResolvedValue([]);
+
+    const result = await computeDORAMetrics(REPO);
+
+    expect(result.leadTimeForChanges.rating).toBe("N/A");
+    expect(result.leadTimeForChanges.medianHours).toBe(0);
+  });
 });
 
 // =========================================================================
@@ -270,14 +281,14 @@ describe("Change Failure Rate", () => {
     expect(result.changeFailureRate.percentage).toBe(0);
   });
 
-  it("returns Elite when no runs exist", async () => {
+  it("returns N/A when no runs exist", async () => {
     mocked(github.fetchDeployments).mockResolvedValue([]);
     mocked(github.fetchMergedPullRequests).mockResolvedValue([]);
     mocked(github.fetchWorkflowRuns).mockResolvedValue([]);
 
     const result = await computeDORAMetrics(REPO);
 
-    expect(result.changeFailureRate.rating).toBe("Elite");
+    expect(result.changeFailureRate.rating).toBe("N/A");
     expect(result.changeFailureRate.percentage).toBe(0);
   });
 });

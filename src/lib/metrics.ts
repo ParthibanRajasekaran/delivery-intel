@@ -142,6 +142,9 @@ async function computeLeadTime(id: RepoIdentifier): Promise<DORAMetrics["leadTim
   const hours = mergedPRs
     .filter((pr) => pr.merged_at)
     .map((pr) => differenceInHours(parseISO(pr.merged_at!), parseISO(pr.created_at)));
+  if (hours.length === 0) {
+    return { medianHours: 0, rating: "N/A" };
+  }
   const med = median(hours);
   return { medianHours: +med.toFixed(1), rating: rateLeadTime(med) };
 }
@@ -156,13 +159,13 @@ async function computeChangeFailureRate(
   const runs: GitHubWorkflowRun[] = await fetchWorkflowRuns(id, 50);
 
   if (runs.length === 0) {
-    return { percentage: 0, failedRuns: 0, totalRuns: 0, rating: "Elite" };
+    return { percentage: 0, failedRuns: 0, totalRuns: 0, rating: "N/A" };
   }
 
   // Only consider completed runs (ignore in_progress / queued)
   const completed = runs.filter((r) => r.status === "completed");
   if (completed.length === 0) {
-    return { percentage: 0, failedRuns: 0, totalRuns: 0, rating: "Elite" };
+    return { percentage: 0, failedRuns: 0, totalRuns: 0, rating: "N/A" };
   }
 
   const failures = completed.filter((r) => r.conclusion === "failure");

@@ -254,6 +254,9 @@ async function computeLeadTime(
   const hours = mergedPRs
     .filter((pr: any) => pr.merged_at)
     .map((pr: any) => differenceInHours(parseISO(pr.merged_at), parseISO(pr.created_at)));
+  if (hours.length === 0) {
+    return { medianHours: 0, rating: "N/A" };
+  }
   const med = median(hours);
   return { medianHours: +med.toFixed(1), rating: rateLeadTime(med) };
 }
@@ -264,11 +267,11 @@ async function computeCFR(
 ): Promise<DORAMetrics["changeFailureRate"]> {
   const runs = await fetchWorkflowRuns(octokit, id);
   if (runs.length === 0) {
-    return { percentage: 0, failedRuns: 0, totalRuns: 0, rating: "Elite" };
+    return { percentage: 0, failedRuns: 0, totalRuns: 0, rating: "N/A" };
   }
   const completed = runs.filter((r: any) => r.status === "completed");
   if (completed.length === 0) {
-    return { percentage: 0, failedRuns: 0, totalRuns: 0, rating: "Elite" };
+    return { percentage: 0, failedRuns: 0, totalRuns: 0, rating: "N/A" };
   }
   const failures = completed.filter((r: any) => r.conclusion === "failure");
   const pct = +((failures.length / completed.length) * 100).toFixed(1);
@@ -469,7 +472,7 @@ function generateSuggestions(dora: DORAMetrics, vulns: DependencyVulnerability[]
     });
   }
 
-  if (dora.deploymentFrequency.rating === "Low") {
+  if (dora.deploymentFrequency.rating === "Low" || dora.deploymentFrequency.rating === "N/A") {
     suggestions.push({
       category: "performance",
       severity: "medium",
@@ -532,6 +535,7 @@ const SCORES: Record<string, number> = {
   High: 75,
   Medium: 50,
   Low: 25,
+  "N/A": 50,
 };
 
 function computeScore(dora: DORAMetrics, vulns: DependencyVulnerability[]): number {

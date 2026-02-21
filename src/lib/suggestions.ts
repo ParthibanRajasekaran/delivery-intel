@@ -185,11 +185,16 @@ export function computeOverallScore(
   dora: DORAMetrics,
   vulnerabilities: DependencyVulnerability[],
 ): number {
+  const ratings = [
+    dora.deploymentFrequency.rating,
+    dora.leadTimeForChanges.rating,
+    dora.changeFailureRate.rating,
+  ].filter((r) => r !== "N/A");
+
   const doraScore =
-    (RATING_SCORES[dora.deploymentFrequency.rating] +
-      RATING_SCORES[dora.leadTimeForChanges.rating] +
-      RATING_SCORES[dora.changeFailureRate.rating]) /
-    3;
+    ratings.length > 0
+      ? ratings.reduce((sum, r) => sum + RATING_SCORES[r], 0) / ratings.length
+      : 50; // neutral when all metrics lack data
 
   // Penalty for vulnerabilities: -5 per critical, -2 per high, -1 per medium
   const vulnPenalty = vulnerabilities.reduce((sum, v) => {
