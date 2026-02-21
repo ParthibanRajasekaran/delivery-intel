@@ -66,7 +66,7 @@ export function classifySeverity(severity?: OsvVulnSeverity[]): string {
   if (!severity || severity.length === 0) {
     return "unknown";
   }
-  const cvss = parseFloat(severity[0].score);
+  const cvss = Number.parseFloat(severity[0].score);
   if (cvss >= 9) {
     return "critical";
   }

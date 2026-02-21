@@ -242,7 +242,14 @@ export function generateFallbackNarrative(input: NarrativeInput): string {
   const lines: string[] = [];
 
   // Verdict
-  const verdict = overallScore >= 80 ? "healthy" : overallScore >= 50 ? "at-risk" : "degraded";
+  let verdict: string;
+  if (overallScore >= 80) {
+    verdict = "healthy";
+  } else if (overallScore >= 50) {
+    verdict = "at-risk";
+  } else {
+    verdict = "degraded";
+  }
   lines.push(`**Delivery Health: ${verdict.toUpperCase()}** (${overallScore}/100)`);
   lines.push("");
 
