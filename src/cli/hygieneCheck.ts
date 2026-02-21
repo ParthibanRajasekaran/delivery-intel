@@ -137,11 +137,30 @@ export async function checkStalePRs(
     });
 
     const now = Date.now();
-    const stalePRs = pulls.filter((pr) => {
+    const agedPulls = pulls.filter((pr) => {
       const ageHours = (now - new Date(pr.created_at).getTime()) / (1000 * 60 * 60);
-      // A PR is "stale" if it has been open longer than maxHours and still has pending reviewers
-      return ageHours > maxHours && (pr.requested_reviewers?.length ?? 0) > 0;
+      return ageHours > maxHours;
     });
+
+    // Check each aged PR for actual review activity (not just requested reviewers)
+    const reviewChecks = await Promise.all(
+      agedPulls.map(async (pr) => {
+        try {
+          const { data: reviews } = await octokit.pulls.listReviews({
+            owner,
+            repo,
+            pull_number: pr.number,
+            per_page: 1,
+          });
+          // A PR is "stale" if it has been open >maxHours and received no reviews
+          return reviews.length === 0 ? pr : null;
+        } catch {
+          return null;
+        }
+      }),
+    );
+
+    const stalePRs = reviewChecks.filter((pr): pr is (typeof agedPulls)[number] => pr !== null);
 
     if (stalePRs.length === 0) {
       return {

@@ -218,11 +218,25 @@ async function main(): Promise<void> {
     let narrative: string | undefined;
     let narrativeModel = "template";
     if (narrativeMode) {
-      const llmResult = await generateNarrativeSummary({ analysis: result, risk });
-      if (llmResult) {
-        narrative = llmResult.narrative;
-        narrativeModel = llmResult.model;
-      } else {
+      try {
+        const llmResult = await generateNarrativeSummary({ analysis: result, risk });
+        if (llmResult) {
+          narrative = llmResult.narrative;
+          narrativeModel = llmResult.model;
+        }
+      } catch (llmErr: unknown) {
+        // LLM failed — fall back to template and surface a non-fatal warning
+        if (!jsonMode) {
+          const llmMsg = llmErr instanceof Error ? llmErr.message : String(llmErr);
+          console.log(
+            "  " +
+              chalk.hex("#ffbe0b")("⚠  LLM narrative failed, using template fallback: ") +
+              dim(llmMsg),
+          );
+        }
+      }
+      // Fall back to template if LLM didn't produce a narrative
+      if (!narrative) {
         narrative = generateFallbackNarrative({ analysis: result, risk });
         narrativeModel = "template";
       }

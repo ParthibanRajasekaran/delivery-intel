@@ -6,7 +6,8 @@
 //
 // Formula:
 //   Risk = (ΔCycleTime × 0.6) + (ΔFailureRate × 0.4)
-//   If sentiment multiplier is provided, negative sentiment weighs at 0.5x.
+//   If sentiment multiplier is provided, negative sentiment can amplify risk
+//   up to 1.5x (multiplier = 1.0 + negativeRatio × 0.5).
 //
 // Output: a 0-100 risk score with a qualitative level and breakdown.
 // ============================================================================
@@ -161,10 +162,13 @@ export function computeRiskScore(input: RiskInput): RiskBreakdown {
   );
 
   // --- Sentiment multiplier ---
-  // If negative sentiment is provided, scale it: 1.0 (neutral) → 1.5 (fully negative)
+  // If negative sentiment is provided, clamp to [0, 1] and scale: 1.0 (neutral) → 1.5 (fully negative)
   let sentimentMultiplier = 1.0;
-  if (sentimentNegativeRatio !== undefined && sentimentNegativeRatio > 0) {
-    sentimentMultiplier = 1.0 + sentimentNegativeRatio * SENTIMENT_NEGATIVE_MULTIPLIER;
+  if (sentimentNegativeRatio !== undefined) {
+    const clampedRatio = Math.min(1, Math.max(0, sentimentNegativeRatio));
+    if (clampedRatio > 0) {
+      sentimentMultiplier = 1.0 + clampedRatio * SENTIMENT_NEGATIVE_MULTIPLIER;
+    }
   }
 
   // --- Weighted score ---

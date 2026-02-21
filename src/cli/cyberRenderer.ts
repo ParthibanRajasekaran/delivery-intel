@@ -373,7 +373,7 @@ function renderNarrative(narrative: string, model: string): string {
   lines.push("  " + sep);
   lines.push("");
 
-  // Format narrative paragraphs (wrap at ~70 chars for terminal readability)
+  // Format narrative paragraphs, preserving existing line breaks
   for (const paragraph of narrative.split("\n\n")) {
     const trimmed = paragraph.trim();
     if (trimmed) {

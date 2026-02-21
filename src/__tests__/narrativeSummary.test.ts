@@ -1,5 +1,10 @@
-import { describe, it, expect, beforeEach, afterEach } from "vitest";
-import { loadLLMConfig, buildUserPrompt, generateFallbackNarrative } from "../cli/narrativeSummary";
+import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
+import {
+  loadLLMConfig,
+  buildUserPrompt,
+  generateFallbackNarrative,
+  generateNarrativeSummary,
+} from "../cli/narrativeSummary";
 import type { AnalysisResult } from "../cli/analyzer";
 import type { RiskBreakdown } from "../cli/riskEngine";
 
@@ -209,5 +214,107 @@ describe("generateFallbackNarrative", () => {
   it("includes top suggestion", () => {
     const result = generateFallbackNarrative({ analysis: makeAnalysis() });
     expect(result).toContain("Update lodash");
+  });
+});
+
+// ---------------------------------------------------------------------------
+// generateNarrativeSummary (with mocked fetch)
+// ---------------------------------------------------------------------------
+describe("generateNarrativeSummary", () => {
+  const mockConfig = {
+    apiKey: "sk-test",
+    baseUrl: "https://api.example.com/v1",
+    model: "gpt-4o-mini",
+  };
+
+  afterEach(() => {
+    vi.restoreAllMocks();
+  });
+
+  it("returns null when no config is available", async () => {
+    const result = await generateNarrativeSummary({ analysis: makeAnalysis() });
+    // No env var set and no override → null
+    expect(result).toBeNull();
+  });
+
+  it("parses a successful LLM response", async () => {
+    const mockResponse = {
+      ok: true,
+      json: async () => ({
+        choices: [{ message: { content: "This is the executive summary." } }],
+        model: "gpt-4o-mini",
+        usage: { total_tokens: 150 },
+      }),
+    };
+    vi.stubGlobal("fetch", vi.fn().mockResolvedValue(mockResponse));
+
+    const result = await generateNarrativeSummary({ analysis: makeAnalysis() }, mockConfig);
+
+    expect(result).not.toBeNull();
+    expect(result!.narrative).toBe("This is the executive summary.");
+    expect(result!.model).toBe("gpt-4o-mini");
+    expect(result!.tokensUsed).toBe(150);
+  });
+
+  it("throws on non-2xx response", async () => {
+    const mockResponse = {
+      ok: false,
+      status: 401,
+      text: async () => "Unauthorized",
+    };
+    vi.stubGlobal("fetch", vi.fn().mockResolvedValue(mockResponse));
+
+    await expect(
+      generateNarrativeSummary({ analysis: makeAnalysis() }, mockConfig),
+    ).rejects.toThrow("LLM API error 401: Unauthorized");
+  });
+
+  it("throws on empty LLM response", async () => {
+    const mockResponse = {
+      ok: true,
+      json: async () => ({
+        choices: [{ message: { content: "" } }],
+        model: "gpt-4o-mini",
+      }),
+    };
+    vi.stubGlobal("fetch", vi.fn().mockResolvedValue(mockResponse));
+
+    await expect(
+      generateNarrativeSummary({ analysis: makeAnalysis() }, mockConfig),
+    ).rejects.toThrow("LLM returned an empty response");
+  });
+
+  it("sends correct headers and body to the LLM API", async () => {
+    const fetchMock = vi.fn().mockResolvedValue({
+      ok: true,
+      json: async () => ({
+        choices: [{ message: { content: "Summary text." } }],
+        model: "gpt-4o-mini",
+      }),
+    });
+    vi.stubGlobal("fetch", fetchMock);
+
+    await generateNarrativeSummary({ analysis: makeAnalysis() }, mockConfig);
+
+    expect(fetchMock).toHaveBeenCalledOnce();
+    const [url, options] = fetchMock.mock.calls[0];
+    expect(url).toBe("https://api.example.com/v1/chat/completions");
+    expect(options.method).toBe("POST");
+    expect(options.headers.Authorization).toBe("Bearer sk-test");
+    const body = JSON.parse(options.body);
+    expect(body.model).toBe("gpt-4o-mini");
+    expect(body.messages).toHaveLength(2);
+    expect(body.messages[0].role).toBe("system");
+    expect(body.messages[1].role).toBe("user");
+  });
+
+  it("handles AbortError from timeout", async () => {
+    const abortError = new Error("The operation was aborted");
+    abortError.name = "AbortError";
+    vi.stubGlobal("fetch", vi.fn().mockRejectedValue(abortError));
+
+    await expect(
+      generateNarrativeSummary({ analysis: makeAnalysis() }, mockConfig),
+    ).rejects.toThrow("timed out");
   });
 });

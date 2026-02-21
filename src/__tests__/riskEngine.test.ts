@@ -138,6 +138,24 @@ describe("computeRiskScore", () => {
     expect(result.sentimentMultiplier).toBe(1.0);
   });
 
+  it("clamps sentimentNegativeRatio to [0, 1]", () => {
+    const overOne: RiskInput = {
+      doraMetrics: makeDoraMetrics(200, 30),
+      sentimentNegativeRatio: 2.5,
+    };
+    const result = computeRiskScore(overOne);
+    // Clamped to 1.0 → multiplier = 1.0 + 1.0 * 0.5 = 1.5
+    expect(result.sentimentMultiplier).toBe(1.5);
+
+    const negative: RiskInput = {
+      doraMetrics: makeDoraMetrics(200, 30),
+      sentimentNegativeRatio: -0.5,
+    };
+    const negResult = computeRiskScore(negative);
+    // Clamped to 0 → multiplier stays 1.0
+    expect(negResult.sentimentMultiplier).toBe(1.0);
+  });
+
   it("produces consistent deltas between 0 and 1", () => {
     const input: RiskInput = { doraMetrics: makeDoraMetrics(300, 50) };
     const result = computeRiskScore(input);

@@ -143,25 +143,48 @@ export function buildUserPrompt(input: NarrativeInput): string {
 /**
  * Call an OpenAI-compatible /chat/completions endpoint.
  */
+const LLM_TIMEOUT_MS = 60_000;
+
 async function chatCompletion(
   config: LLMConfig,
   messages: ChatMessage[],
 ): Promise<ChatCompletionResponse> {
   const url = `${config.baseUrl.replace(/\/$/, "")}/chat/completions`;
 
-  const response = await fetch(url, {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-      Authorization: `Bearer ${config.apiKey}`,
-    },
-    body: JSON.stringify({
-      model: config.model,
-      messages,
-      temperature: 0.4,
-      max_tokens: 1024,
-    }),
-  });
+  // Enforce a maximum duration so CLI/CI runs cannot hang indefinitely
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => {
+    controller.abort();
+  }, LLM_TIMEOUT_MS);
+
+  let response: Response;
+  try {
+    response = await fetch(url, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${config.apiKey}`,
+      },
+      body: JSON.stringify({
+        model: config.model,
+        messages,
+        temperature: 0.4,
+        max_tokens: 1024,
+      }),
+      signal: controller.signal,
+    });
+  } catch (err: unknown) {
+    if (err instanceof Error && err.name === "AbortError") {
+      throw new Error(
+        `LLM API request to ${url} timed out after ${LLM_TIMEOUT_MS}ms. ` +
+          "Check network connectivity or try again.",
+        { cause: err },
+      );
+    }
+    throw err;
+  } finally {
+    clearTimeout(timeoutId);
+  }
 
   if (!response.ok) {
     const body = await response.text();

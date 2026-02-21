@@ -35,7 +35,7 @@ jobs:
 
       # Run tests with coverage (json-summary reporter produces coverage-summary.json)
       - name: Run tests with coverage
-        run: npm run test:coverage -- --coverage.reporter=json-summary || true
+        run: npm run test:coverage -- --coverage.reporter=json-summary
 
       # Build the CLI so we can use the hygiene check module
       - name: Build CLI
@@ -58,8 +58,9 @@ jobs:
               const raw = fs.readFileSync('coverage/coverage-summary.json', 'utf8');
               const summary = JSON.parse(raw);
               coveragePercent = summary?.total?.statements?.pct ?? undefined;
-            } catch {
-              console.log('⚠️  Could not read coverage summary — skipping coverage check');
+            } catch (error) {
+              console.log('⚠️  Could not read coverage summary — treating coverage as 0%.', error);
+              coveragePercent = 0;
             }
 
             const report = await runHygieneCheck({
