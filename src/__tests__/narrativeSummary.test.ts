@@ -111,32 +111,18 @@ describe("loadLLMConfig", () => {
 describe("buildUserPrompt", () => {
   const analysis = makeAnalysis();
 
-  it("includes repo name", () => {
-    const prompt = buildUserPrompt({ analysis });
-    expect(prompt).toContain("acme/widget");
-  });
-
-  it("includes DORA metrics JSON", () => {
-    const prompt = buildUserPrompt({ analysis });
-    expect(prompt).toContain("deploymentFrequency");
-    expect(prompt).toContain("leadTimeForChanges");
-    expect(prompt).toContain("changeFailureRate");
-  });
-
-  it("includes overall score", () => {
-    const prompt = buildUserPrompt({ analysis });
-    expect(prompt).toContain("72/100");
-  });
-
-  it("includes vulnerability summary when present", () => {
-    const prompt = buildUserPrompt({ analysis });
-    expect(prompt).toContain("Vulnerabilities");
-    expect(prompt).toContain("1 dependency vulnerability");
-  });
-
-  it("includes suggestions when present", () => {
-    const prompt = buildUserPrompt({ analysis });
-    expect(prompt).toContain("Update lodash");
+  it.each([
+    ["repo name", "acme/widget"],
+    ["deployment frequency metric", "deploymentFrequency"],
+    ["lead time metric", "leadTimeForChanges"],
+    ["failure rate metric", "changeFailureRate"],
+    ["overall score", "72/100"],
+    ["vulnerability header", "Vulnerabilities"],
+    ["vulnerability count", "1 dependency vulnerability"],
+    ["suggestion title", "Update lodash"],
+    ["daily deployments", "2, 3, 1, 4, 2, 5, 3"],
+  ])("includes %s", (_label, expected) => {
+    expect(buildUserPrompt({ analysis })).toContain(expected);
   });
 
   it("includes risk data when provided", () => {
@@ -146,13 +132,7 @@ describe("buildUserPrompt", () => {
   });
 
   it("excludes risk section when not provided", () => {
-    const prompt = buildUserPrompt({ analysis });
-    expect(prompt).not.toContain("Burnout Risk Score");
-  });
-
-  it("includes daily deployments", () => {
-    const prompt = buildUserPrompt({ analysis });
-    expect(prompt).toContain("2, 3, 1, 4, 2, 5, 3");
+    expect(buildUserPrompt({ analysis })).not.toContain("Burnout Risk Score");
   });
 });
 
@@ -166,56 +146,31 @@ describe("generateFallbackNarrative", () => {
     expect(result.length).toBeGreaterThan(50);
   });
 
-  it("includes delivery health verdict", () => {
-    const result = generateFallbackNarrative({ analysis: makeAnalysis() });
-    expect(result).toContain("AT-RISK");
-  });
-
-  it("includes DORA metrics numbers", () => {
-    const result = generateFallbackNarrative({ analysis: makeAnalysis() });
-    expect(result).toContain("14.0");
-    expect(result).toContain("36.0");
-    expect(result).toContain("8.0%");
-  });
-
-  it("includes vulnerability count when present", () => {
-    const result = generateFallbackNarrative({ analysis: makeAnalysis() });
-    expect(result).toContain("1 dependency vulnerabilit");
+  it.each([
+    ["delivery health verdict", "AT-RISK"],
+    ["deployment frequency", "14.0"],
+    ["lead time", "36.0"],
+    ["failure rate", "8.0%"],
+    ["vulnerability count", "1 dependency vulnerabilit"],
+    ["top suggestion", "Update lodash"],
+  ])("includes %s", (_label, expected) => {
+    expect(generateFallbackNarrative({ analysis: makeAnalysis() })).toContain(expected);
   });
 
   it("includes risk score when provided", () => {
-    const result = generateFallbackNarrative({
-      analysis: makeAnalysis(),
-      risk: makeRisk(),
-    });
+    const result = generateFallbackNarrative({ analysis: makeAnalysis(), risk: makeRisk() });
     expect(result).toContain("22/100");
     expect(result).toContain("low");
   });
 
-  it("classifies healthy repos correctly", () => {
+  it.each([
+    { score: 90, verdict: "HEALTHY" },
+    { score: 55, verdict: "AT-RISK" },
+    { score: 20, verdict: "DEGRADED" },
+  ])("classifies score $score as $verdict", ({ score, verdict }) => {
     const analysis = makeAnalysis();
-    analysis.overallScore = 90;
-    const result = generateFallbackNarrative({ analysis });
-    expect(result).toContain("HEALTHY");
-  });
-
-  it("classifies at-risk repos correctly", () => {
-    const analysis = makeAnalysis();
-    analysis.overallScore = 55;
-    const result = generateFallbackNarrative({ analysis });
-    expect(result).toContain("AT-RISK");
-  });
-
-  it("classifies severely degraded repos correctly", () => {
-    const analysis = makeAnalysis();
-    analysis.overallScore = 20;
-    const result = generateFallbackNarrative({ analysis });
-    expect(result).toContain("DEGRADED");
-  });
-
-  it("includes top suggestion", () => {
-    const result = generateFallbackNarrative({ analysis: makeAnalysis() });
-    expect(result).toContain("Update lodash");
+    analysis.overallScore = score;
+    expect(generateFallbackNarrative({ analysis })).toContain(verdict);
   });
 });
 
@@ -269,23 +224,22 @@ describe("generateNarrativeSummary", () => {
     expect(result!.tokensUsed).toBe(150);
   });
 
-  it("throws on non-2xx response", async () => {
-    vi.stubGlobal(
-      "fetch",
-      vi.fn().mockResolvedValue({ ok: false, status: 401, text: async () => "Unauthorized" }),
-    );
-
+  it.each([
+    {
+      label: "non-2xx response",
+      response: { ok: false, status: 401, text: async () => "Unauthorized" },
+      error: "LLM API error 401: Unauthorized",
+    },
+    {
+      label: "empty LLM response",
+      response: mockLLMResponse(""),
+      error: "LLM returned an empty response",
+    },
+  ])("throws on $label", async ({ response, error }) => {
+    vi.stubGlobal("fetch", vi.fn().mockResolvedValue(response));
     await expect(
       generateNarrativeSummary({ analysis: makeAnalysis() }, mockConfig),
-    ).rejects.toThrow("LLM API error 401: Unauthorized");
-  });
-
-  it("throws on empty LLM response", async () => {
-    vi.stubGlobal("fetch", vi.fn().mockResolvedValue(mockLLMResponse("")));
-
-    await expect(
-      generateNarrativeSummary({ analysis: makeAnalysis() }, mockConfig),
-    ).rejects.toThrow("LLM returned an empty response");
+    ).rejects.toThrow(error);
   });
 
   it("sends correct headers and body to the LLM API", async () => {

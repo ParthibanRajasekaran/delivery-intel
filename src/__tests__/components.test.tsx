@@ -104,19 +104,18 @@ describe("DORACards", () => {
     render(<DORACards metrics={sampleMetrics} />);
   });
 
-  it("renders all three metric cards", () => {
-    expect(screen.getByText("Deploy Frequency")).toBeTruthy();
-    expect(screen.getByText("Lead Time")).toBeTruthy();
-    expect(screen.getByText("Change Failure Rate")).toBeTruthy();
-  });
+  it.each(["Deploy Frequency", "Lead Time", "Change Failure Rate", "5", "/ week"])(
+    "renders %s",
+    (text) => {
+      expect(screen.getByText(text)).toBeTruthy();
+    },
+  );
 
-  it("renders the Elite rating badge", () => {
-    const eliteBadges = screen.getAllByText("Elite");
-    expect(eliteBadges.length).toBeGreaterThanOrEqual(1);
+  it("renders Elite rating badges", () => {
+    expect(screen.getAllByText("Elite").length).toBeGreaterThanOrEqual(1);
   });
 
   it("renders N/A rating when applicable", () => {
-    // Re-render with modified metrics for this specific case
     const naMetrics: DORAMetrics = {
       ...sampleMetrics,
       leadTimeForChanges: {
@@ -126,11 +125,6 @@ describe("DORACards", () => {
     };
     render(<DORACards metrics={naMetrics} />);
     expect(screen.getByText("N/A")).toBeTruthy();
-  });
-
-  it("renders deployment frequency value", () => {
-    expect(screen.getByText("5")).toBeTruthy();
-    expect(screen.getByText("/ week")).toBeTruthy();
   });
 });
 
@@ -143,23 +137,16 @@ describe("SuggestionsPanel", () => {
     render(<SuggestionsPanel suggestions={sampleSuggestions} />);
   });
 
-  it("renders the heading", () => {
-    expect(screen.getByText("Improvement Suggestions")).toBeTruthy();
-  });
-
-  it("renders all suggestions", () => {
-    expect(screen.getByText("Add branch protection")).toBeTruthy();
-    expect(screen.getByText("Reduce lead time")).toBeTruthy();
-  });
-
-  it("renders suggestion severity badges", () => {
-    expect(screen.getByText("high")).toBeTruthy();
-    expect(screen.getByText("medium")).toBeTruthy();
-  });
-
-  it("renders action items", () => {
-    expect(screen.getByText("Enable branch protection rules")).toBeTruthy();
-    expect(screen.getByText("Require at least 1 review")).toBeTruthy();
+  it.each([
+    "Improvement Suggestions",
+    "Add branch protection",
+    "Reduce lead time",
+    "high",
+    "medium",
+    "Enable branch protection rules",
+    "Require at least 1 review",
+  ])("renders text: %s", (text) => {
+    expect(screen.getByText(text)).toBeTruthy();
   });
 
   it("renders empty state gracefully", () => {

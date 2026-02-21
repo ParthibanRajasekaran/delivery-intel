@@ -250,41 +250,22 @@ describe("Change Failure Rate", () => {
     expect(result.changeFailureRate.totalRuns).toBe(0);
   });
 
-  it("rates Elite for ≤5% failure rate", async () => {
-    mockGitHub({
-      runs: Array.from({ length: 20 }, () => makeRun()),
-    });
-
-    const result = await computeDORAMetrics(REPO);
-
-    expect(result.changeFailureRate.percentage).toBe(0);
-    expect(result.changeFailureRate.rating).toBe("Elite");
-  });
-
-  it("rates High for 6-10% failure rate", async () => {
-    mockGitHub({
-      runs: [...Array.from({ length: 9 }, () => makeRun()), makeRun({ conclusion: "failure" })],
-    });
-
-    const result = await computeDORAMetrics(REPO);
-
-    expect(result.changeFailureRate.percentage).toBe(10);
-    expect(result.changeFailureRate.rating).toBe("High");
-  });
-
-  it("rates Medium for 11-15% failure rate", async () => {
-    // 2 failures out of 15 = 13.3%
+  it.each([
+    { label: "Elite for ≤5%", successes: 20, failures: 0, pct: 0, rating: "Elite" },
+    { label: "High for 6-10%", successes: 9, failures: 1, pct: 10, rating: "High" },
+    { label: "Medium for 11-15%", successes: 13, failures: 2, pct: undefined, rating: "Medium" },
+  ])("rates $label failure rate", async ({ successes, failures, pct, rating }) => {
     mockGitHub({
       runs: [
-        ...Array.from({ length: 13 }, () => makeRun()),
-        makeRun({ conclusion: "failure" }),
-        makeRun({ conclusion: "failure" }),
+        ...Array.from({ length: successes }, () => makeRun()),
+        ...Array.from({ length: failures }, () => makeRun({ conclusion: "failure" })),
       ],
     });
-
     const result = await computeDORAMetrics(REPO);
-
-    expect(result.changeFailureRate.rating).toBe("Medium");
+    if (pct !== undefined) {
+      expect(result.changeFailureRate.percentage).toBe(pct);
+    }
+    expect(result.changeFailureRate.rating).toBe(rating);
   });
 });
 
@@ -330,25 +311,29 @@ describe("Mean Time to Restore", () => {
     expect(result.meanTimeToRestore.rating).toBe("N/A");
   });
 
-  it("rates Elite when restoration is under 1 hour", async () => {
-    setupMTTR("2026-02-20T10:00:00Z", "2026-02-20T10:30:00Z"); // 30 min
-
+  it.each([
+    {
+      label: "Elite (< 1h)",
+      fail: "2026-02-20T10:00:00Z",
+      success: "2026-02-20T10:30:00Z",
+      rating: "Elite",
+    },
+    {
+      label: "Medium (days)",
+      fail: "2026-02-17T10:00:00Z",
+      success: "2026-02-20T10:00:00Z",
+      rating: "Medium",
+    },
+    {
+      label: "Low (> 1 week)",
+      fail: "2026-02-10T10:00:00Z",
+      success: "2026-02-20T10:00:00Z",
+      rating: "Low",
+    },
+  ])("rates $label restoration", async ({ fail, success, rating }) => {
+    setupMTTR(fail, success);
     const result = await computeDORAMetrics(REPO);
-    expect(result.meanTimeToRestore.rating).toBe("Elite");
-  });
-
-  it("rates Medium when restoration takes days", async () => {
-    setupMTTR("2026-02-17T10:00:00Z", "2026-02-20T10:00:00Z"); // 72 hours
-
-    const result = await computeDORAMetrics(REPO);
-    expect(result.meanTimeToRestore.rating).toBe("Medium");
-  });
-
-  it("rates Low when restoration takes over a week", async () => {
-    setupMTTR("2026-02-10T10:00:00Z", "2026-02-20T10:00:00Z"); // 10 days
-
-    const result = await computeDORAMetrics(REPO);
-    expect(result.meanTimeToRestore.rating).toBe("Low");
+    expect(result.meanTimeToRestore.rating).toBe(rating);
   });
 
   it("ignores recovery on a different branch", async () => {
