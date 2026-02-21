@@ -13,9 +13,13 @@ export function ScoreRing({ score }: ScoreRingProps) {
   const offset = circumference - (score / 100) * circumference;
 
   let color = "var(--danger)";
-  if (score >= 75) {color = "var(--success)";}
-  else if (score >= 50) {color = "var(--warning)";}
-  else if (score >= 25) {color = "var(--info)";}
+  if (score >= 75) {
+    color = "var(--success)";
+  } else if (score >= 50) {
+    color = "var(--warning)";
+  } else if (score >= 25) {
+    color = "var(--info)";
+  }
 
   /* ── Animated counter ── */
   const ref = useRef<HTMLDivElement>(null);
@@ -23,7 +27,9 @@ export function ScoreRing({ score }: ScoreRingProps) {
   const [displayed, setDisplayed] = useState(0);
 
   useEffect(() => {
-    if (!isInView) {return;}
+    if (!isInView) {
+      return;
+    }
     let frame: number;
     const start = performance.now();
     const duration = 1200; // ms
@@ -33,7 +39,9 @@ export function ScoreRing({ score }: ScoreRingProps) {
       // easeOutExpo
       const eased = progress === 1 ? 1 : 1 - Math.pow(2, -10 * progress);
       setDisplayed(Math.round(eased * score));
-      if (progress < 1) {frame = requestAnimationFrame(tick);}
+      if (progress < 1) {
+        frame = requestAnimationFrame(tick);
+      }
     }
 
     frame = requestAnimationFrame(tick);
@@ -44,14 +52,7 @@ export function ScoreRing({ score }: ScoreRingProps) {
     <div ref={ref} className="relative inline-flex items-center justify-center">
       <svg width="140" height="140" viewBox="0 0 140 140">
         {/* Track ring */}
-        <circle
-          cx="70"
-          cy="70"
-          r={radius}
-          fill="none"
-          stroke="var(--border)"
-          strokeWidth="10"
-        />
+        <circle cx="70" cy="70" r={radius} fill="none" stroke="var(--border)" strokeWidth="10" />
 
         {/* Glow filter */}
         <defs>

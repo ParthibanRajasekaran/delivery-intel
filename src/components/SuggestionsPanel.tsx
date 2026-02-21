@@ -73,9 +73,7 @@ export function SuggestionsPanel({ suggestions }: SuggestionsPanelProps) {
             }}
           >
             <div className="flex items-start gap-2 mb-2">
-              <span className="text-base">
-                {categoryIcons[s.category] || "📌"}
-              </span>
+              <span className="text-base">{categoryIcons[s.category] || "📌"}</span>
               <div className="flex-1">
                 <div className="flex items-center gap-2">
                   <h4 className="text-sm font-semibold">{s.title}</h4>
@@ -89,10 +87,7 @@ export function SuggestionsPanel({ suggestions }: SuggestionsPanelProps) {
                     {s.severity}
                   </span>
                 </div>
-                <p
-                  className="text-xs mt-1"
-                  style={{ color: "var(--text-muted)" }}
-                >
+                <p className="text-xs mt-1" style={{ color: "var(--text-muted)" }}>
                   {s.description}
                 </p>
               </div>

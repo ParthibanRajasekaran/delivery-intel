@@ -6,11 +6,7 @@
 // ============================================================================
 
 import { Octokit } from "@octokit/rest";
-import {
-  differenceInHours,
-  differenceInCalendarWeeks,
-  parseISO,
-} from "date-fns";
+import { differenceInHours, differenceInCalendarWeeks, parseISO } from "date-fns";
 
 // ---------------------------------------------------------------------------
 // Types (self-contained, no @/ alias)
@@ -64,6 +60,8 @@ export interface AnalysisResult {
   vulnerabilities: DependencyVulnerability[];
   suggestions: Suggestion[];
   overallScore: number;
+  /** Deployment counts for the last 7 days (index 0 = 6 days ago, index 6 = today). */
+  dailyDeployments: number[];
 }
 
 // ---------------------------------------------------------------------------
@@ -72,42 +70,60 @@ export interface AnalysisResult {
 
 export function parseRepoSlug(input: string): RepoIdentifier {
   const cleaned = input.trim().replace(/\.git$/, "");
-  const urlMatch = cleaned.match(
-    /github\.com\/([A-Za-z0-9_.-]+)\/([A-Za-z0-9_.-]+)/
-  );
-  if (urlMatch) {return { owner: urlMatch[1], repo: urlMatch[2] };}
+  const urlMatch = cleaned.match(/github\.com\/([A-Za-z0-9_.-]+)\/([A-Za-z0-9_.-]+)/);
+  if (urlMatch) {
+    return { owner: urlMatch[1], repo: urlMatch[2] };
+  }
   const slugMatch = cleaned.match(/^([A-Za-z0-9_.-]+)\/([A-Za-z0-9_.-]+)$/);
-  if (slugMatch) {return { owner: slugMatch[1], repo: slugMatch[2] };}
-  throw new Error(
-    `Invalid repository: "${input}". Use "owner/repo" or a GitHub URL.`
-  );
+  if (slugMatch) {
+    return { owner: slugMatch[1], repo: slugMatch[2] };
+  }
+  throw new Error(`Invalid repository: "${input}". Use "owner/repo" or a GitHub URL.`);
 }
 
 function median(values: number[]): number {
-  if (values.length === 0) {return 0;}
+  if (values.length === 0) {
+    return 0;
+  }
   const sorted = [...values].sort((a, b) => a - b);
   const mid = Math.floor(sorted.length / 2);
-  return sorted.length % 2 !== 0
-    ? sorted[mid]
-    : (sorted[mid - 1] + sorted[mid]) / 2;
+  return sorted.length % 2 !== 0 ? sorted[mid] : (sorted[mid - 1] + sorted[mid]) / 2;
 }
 
 function rateDeployFreq(v: number): string {
-  if (v >= 7) {return "Elite";}
-  if (v >= 1) {return "High";}
-  if (v >= 0.25) {return "Medium";}
+  if (v >= 7) {
+    return "Elite";
+  }
+  if (v >= 1) {
+    return "High";
+  }
+  if (v >= 0.25) {
+    return "Medium";
+  }
   return "Low";
 }
 function rateLeadTime(h: number): string {
-  if (h < 24) {return "Elite";}
-  if (h < 168) {return "High";}
-  if (h < 720) {return "Medium";}
+  if (h < 24) {
+    return "Elite";
+  }
+  if (h < 168) {
+    return "High";
+  }
+  if (h < 720) {
+    return "Medium";
+  }
   return "Low";
 }
 function rateCFR(p: number): string {
-  if (p <= 5) {return "Elite";}
-  if (p <= 10) {return "High";}
-  if (p <= 15) {return "Medium";}
+  if (p <= 5) {
+    return "Elite";
+  }
+  if (p <= 10) {
+    return "High";
+  }
+  if (p <= 15) {
+    return "Medium";
+  }
   return "Low";
 }
 
@@ -152,7 +168,7 @@ async function fetchWorkflowRuns(octokit: Octokit, id: RepoIdentifier) {
 async function fetchFileContent(
   octokit: Octokit,
   id: RepoIdentifier,
-  path: string
+  path: string,
 ): Promise<string | null> {
   try {
     const { data } = await octokit.repos.getContent({
@@ -173,57 +189,78 @@ async function fetchFileContent(
 // Metrics computation
 // ---------------------------------------------------------------------------
 
+/**
+ * Bucket a list of ISO-date events into per-day counts for the last 7 days.
+ * Returns an array of length 7 where index 0 = 6 days ago and index 6 = today.
+ */
+export function bucketLast7Days(dates: Date[]): number[] {
+  const now = new Date();
+  const buckets = new Array<number>(7).fill(0);
+  for (const d of dates) {
+    const diffDays = Math.floor((now.getTime() - d.getTime()) / (1000 * 60 * 60 * 24));
+    if (diffDays >= 0 && diffDays < 7) {
+      buckets[6 - diffDays]++;
+    }
+  }
+  return buckets;
+}
+
 async function computeDeployFrequency(
   octokit: Octokit,
-  id: RepoIdentifier
-): Promise<DORAMetrics["deploymentFrequency"]> {
+  id: RepoIdentifier,
+): Promise<{ freq: DORAMetrics["deploymentFrequency"]; daily: number[] }> {
   const deployments = await fetchDeployments(octokit, id);
   if (deployments.length >= 2) {
     const dates = deployments.map((d: any) => parseISO(d.created_at));
-    const weeks =
-      differenceInCalendarWeeks(dates[0], dates[dates.length - 1]) || 1;
+    const weeks = differenceInCalendarWeeks(dates[0], dates[dates.length - 1]) || 1;
     const perWeek = +(deployments.length / weeks).toFixed(2);
     return {
-      deploymentsPerWeek: perWeek,
-      rating: rateDeployFreq(perWeek),
-      source: "deployments_api",
+      freq: {
+        deploymentsPerWeek: perWeek,
+        rating: rateDeployFreq(perWeek),
+        source: "deployments_api",
+      },
+      daily: bucketLast7Days(dates),
     };
   }
 
   const mergedPRs = await fetchMergedPRs(octokit, id);
   if (mergedPRs.length < 2) {
-    return { deploymentsPerWeek: 0, rating: "Low", source: "merged_prs_fallback" };
+    return {
+      freq: { deploymentsPerWeek: 0, rating: "Low", source: "merged_prs_fallback" },
+      daily: new Array(7).fill(0),
+    };
   }
   const prDates = mergedPRs
     .map((pr: any) => parseISO(pr.merged_at))
     .sort((a: Date, b: Date) => b.getTime() - a.getTime());
-  const weeks =
-    differenceInCalendarWeeks(prDates[0], prDates[prDates.length - 1]) || 1;
+  const weeks = differenceInCalendarWeeks(prDates[0], prDates[prDates.length - 1]) || 1;
   const perWeek = +(mergedPRs.length / weeks).toFixed(2);
   return {
-    deploymentsPerWeek: perWeek,
-    rating: rateDeployFreq(perWeek),
-    source: "merged_prs_fallback",
+    freq: {
+      deploymentsPerWeek: perWeek,
+      rating: rateDeployFreq(perWeek),
+      source: "merged_prs_fallback",
+    },
+    daily: bucketLast7Days(prDates),
   };
 }
 
 async function computeLeadTime(
   octokit: Octokit,
-  id: RepoIdentifier
+  id: RepoIdentifier,
 ): Promise<DORAMetrics["leadTimeForChanges"]> {
   const mergedPRs = await fetchMergedPRs(octokit, id);
   const hours = mergedPRs
     .filter((pr: any) => pr.merged_at)
-    .map((pr: any) =>
-      differenceInHours(parseISO(pr.merged_at), parseISO(pr.created_at))
-    );
+    .map((pr: any) => differenceInHours(parseISO(pr.merged_at), parseISO(pr.created_at)));
   const med = median(hours);
   return { medianHours: +med.toFixed(1), rating: rateLeadTime(med) };
 }
 
 async function computeCFR(
   octokit: Octokit,
-  id: RepoIdentifier
+  id: RepoIdentifier,
 ): Promise<DORAMetrics["changeFailureRate"]> {
   const runs = await fetchWorkflowRuns(octokit, id);
   if (runs.length === 0) {
@@ -259,7 +296,9 @@ function parsePackageJson(raw: string): ParsedDep[] {
     const deps: ParsedDep[] = [];
     for (const section of ["dependencies", "devDependencies"] as const) {
       const map = pkg[section] as Record<string, string> | undefined;
-      if (!map) {continue;}
+      if (!map) {
+        continue;
+      }
       for (const [name, spec] of Object.entries(map)) {
         deps.push({ name, version: spec.replace(/^[\^~>=<]+/, ""), ecosystem: "npm" });
       }
@@ -274,9 +313,13 @@ function parseRequirementsTxt(raw: string): ParsedDep[] {
   const deps: ParsedDep[] = [];
   for (const line of raw.split("\n")) {
     const t = line.trim();
-    if (!t || t.startsWith("#")) {continue;}
+    if (!t || t.startsWith("#")) {
+      continue;
+    }
     const m = t.match(/^([A-Za-z0-9_.-]+)\s*[=><~!]+\s*([0-9.]+)/);
-    if (m) {deps.push({ name: m[1], version: m[2], ecosystem: "PyPI" });}
+    if (m) {
+      deps.push({ name: m[1], version: m[2], ecosystem: "PyPI" });
+    }
   }
   return deps;
 }
@@ -288,7 +331,9 @@ async function queryOSV(ecosystem: string, name: string, version: string) {
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ version, package: { name, ecosystem } }),
     });
-    if (!res.ok) {return [];}
+    if (!res.ok) {
+      return [];
+    }
     const data = (await res.json()) as any;
     return data.vulns || [];
   } catch {
@@ -298,7 +343,7 @@ async function queryOSV(ecosystem: string, name: string, version: string) {
 
 async function scanVulnerabilities(
   octokit: Octokit,
-  id: RepoIdentifier
+  id: RepoIdentifier,
 ): Promise<DependencyVulnerability[]> {
   const [pkgJson, reqTxt] = await Promise.all([
     fetchFileContent(octokit, id, "package.json"),
@@ -306,39 +351,51 @@ async function scanVulnerabilities(
   ]);
 
   const allDeps: ParsedDep[] = [];
-  if (pkgJson) {allDeps.push(...parsePackageJson(pkgJson));}
-  if (reqTxt) {allDeps.push(...parseRequirementsTxt(reqTxt));}
-  if (allDeps.length === 0) {return [];}
+  if (pkgJson) {
+    allDeps.push(...parsePackageJson(pkgJson));
+  }
+  if (reqTxt) {
+    allDeps.push(...parseRequirementsTxt(reqTxt));
+  }
+  if (allDeps.length === 0) {
+    return [];
+  }
 
   const vulnerabilities: DependencyVulnerability[] = [];
   const BATCH = 10;
 
   for (let i = 0; i < allDeps.length; i += BATCH) {
     const batch = allDeps.slice(i, i + BATCH);
-    const results = await Promise.all(
-      batch.map((d) => queryOSV(d.ecosystem, d.name, d.version))
-    );
+    const results = await Promise.all(batch.map((d) => queryOSV(d.ecosystem, d.name, d.version)));
     for (let j = 0; j < batch.length; j++) {
       const dep = batch[j];
       for (const vuln of results[j]) {
         let fixedVersion: string | null = null;
         const affected = vuln.affected?.find(
-          (a: any) => a.package.name === dep.name && a.package.ecosystem === dep.ecosystem
+          (a: any) => a.package.name === dep.name && a.package.ecosystem === dep.ecosystem,
         );
         if (affected?.ranges) {
           for (const range of affected.ranges) {
             for (const ev of range.events) {
-              if (ev.fixed) { fixedVersion = ev.fixed; break; }
+              if (ev.fixed) {
+                fixedVersion = ev.fixed;
+                break;
+              }
             }
           }
         }
         let severity = "unknown";
         if (vuln.severity?.length > 0) {
           const cvss = parseFloat(vuln.severity[0].score);
-          if (cvss >= 9) {severity = "critical";}
-          else if (cvss >= 7) {severity = "high";}
-          else if (cvss >= 4) {severity = "medium";}
-          else {severity = "low";}
+          if (cvss >= 9) {
+            severity = "critical";
+          } else if (cvss >= 7) {
+            severity = "high";
+          } else if (cvss >= 4) {
+            severity = "medium";
+          } else {
+            severity = "low";
+          }
         }
         vulnerabilities.push({
           packageName: dep.name,
@@ -359,10 +416,7 @@ async function scanVulnerabilities(
 // Suggestion engine
 // ---------------------------------------------------------------------------
 
-function generateSuggestions(
-  dora: DORAMetrics,
-  vulns: DependencyVulnerability[]
-): Suggestion[] {
+function generateSuggestions(dora: DORAMetrics, vulns: DependencyVulnerability[]): Suggestion[] {
   const suggestions: Suggestion[] = [];
 
   if (dora.changeFailureRate.percentage > 15) {
@@ -474,19 +528,29 @@ function generateSuggestions(
 // ---------------------------------------------------------------------------
 
 const SCORES: Record<string, number> = {
-  Elite: 100, High: 75, Medium: 50, Low: 25,
+  Elite: 100,
+  High: 75,
+  Medium: 50,
+  Low: 25,
 };
 
 function computeScore(dora: DORAMetrics, vulns: DependencyVulnerability[]): number {
   const doraScore =
     (SCORES[dora.deploymentFrequency.rating] +
       SCORES[dora.leadTimeForChanges.rating] +
-      SCORES[dora.changeFailureRate.rating]) / 3;
+      SCORES[dora.changeFailureRate.rating]) /
+    3;
 
   const penalty = vulns.reduce((sum, v) => {
-    if (v.severity === "critical") {return sum + 5;}
-    if (v.severity === "high") {return sum + 2;}
-    if (v.severity === "medium") {return sum + 1;}
+    if (v.severity === "critical") {
+      return sum + 5;
+    }
+    if (v.severity === "high") {
+      return sum + 2;
+    }
+    if (v.severity === "medium") {
+      return sum + 1;
+    }
     return sum;
   }, 0);
 
@@ -497,14 +561,11 @@ function computeScore(dora: DORAMetrics, vulns: DependencyVulnerability[]): numb
 // Public: Full analysis
 // ---------------------------------------------------------------------------
 
-export async function analyze(
-  repoSlug: string,
-  token?: string
-): Promise<AnalysisResult> {
+export async function analyze(repoSlug: string, token?: string): Promise<AnalysisResult> {
   const id = parseRepoSlug(repoSlug);
   const octokit = createOctokit(token);
 
-  const [deployFreq, leadTime, cfr, vulns] = await Promise.all([
+  const [deployResult, leadTime, cfr, vulns] = await Promise.all([
     computeDeployFrequency(octokit, id),
     computeLeadTime(octokit, id),
     computeCFR(octokit, id),
@@ -512,7 +573,7 @@ export async function analyze(
   ]);
 
   const doraMetrics: DORAMetrics = {
-    deploymentFrequency: deployFreq,
+    deploymentFrequency: deployResult.freq,
     leadTimeForChanges: leadTime,
     changeFailureRate: cfr,
   };
@@ -527,5 +588,6 @@ export async function analyze(
     vulnerabilities: vulns,
     suggestions,
     overallScore,
+    dailyDeployments: deployResult.daily,
   };
 }

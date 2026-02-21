@@ -25,7 +25,7 @@ on:
 
 permissions:
   contents: read
-  pull-requests: read
+  pull-requests: write
 
 jobs:
   analyze:
@@ -33,11 +33,23 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+
+      - run: npm ci --legacy-peer-deps
+
+      - name: Build CLI
+        run: npm run build:cli
+
       - name: Run Delivery Intel
         env:
           GITHUB_TOKEN: ${{ secrets.DELIVERY_INTEL_TOKEN || secrets.GITHUB_TOKEN }}
         run: |
-          npx delivery-intel@latest ${{ github.repository }} \
+          node bin/delivery-intel.js ${{ github.repository }} \
             --json \
             --output delivery-intel-report.json
 
@@ -51,7 +63,7 @@ jobs:
 
       - name: Check Score Threshold
         run: |
-          SCORE=$(jq '.score' delivery-intel-report.json)
+          SCORE=$(jq '.overallScore' delivery-intel-report.json)
           echo "📊 Delivery Intel Score: $SCORE / 100"
 
           CRITICAL=$(jq '[.vulnerabilities[] | select(.severity == "critical")] | length' delivery-intel-report.json)
@@ -76,7 +88,7 @@ jobs:
           script: |
             const fs = require('fs');
             const report = JSON.parse(fs.readFileSync('delivery-intel-report.json', 'utf8'));
-            const { score, dpiMetrics, vulnerabilities } = report;
+            const { overallScore: score, doraMetrics, vulnerabilities } = report;
 
             const ratingEmoji = { Elite: '🟢', High: '🔵', Medium: '🟡', Low: '🔴', 'N/A': '⚪' };
 
@@ -85,9 +97,9 @@ jobs:
             | Metric | Value | Rating |
             |--------|-------|--------|
             | **Overall Score** | ${score} / 100 | ${score >= 75 ? '🟢' : score >= 50 ? '🟡' : '🔴'} |
-            | Deployment Frequency | ${report.dpiMetrics.deploymentFrequency.deploysPerWeek.toFixed(1)}/week | ${ratingEmoji[report.dpiMetrics.deploymentFrequency.rating]} ${report.dpiMetrics.deploymentFrequency.rating} |
-            | Lead Time for Changes | ${report.dpiMetrics.leadTimeForChanges.medianHours?.toFixed(1) ?? 'N/A'}h | ${ratingEmoji[report.dpiMetrics.leadTimeForChanges.rating]} ${report.dpiMetrics.leadTimeForChanges.rating} |
-            | Change Failure Rate | ${report.dpiMetrics.changeFailureRate.percentage.toFixed(1)}% | ${ratingEmoji[report.dpiMetrics.changeFailureRate.rating]} ${report.dpiMetrics.changeFailureRate.rating} |
+            | Deployment Frequency | ${doraMetrics.deploymentFrequency.deploymentsPerWeek.toFixed(1)}/week | ${ratingEmoji[doraMetrics.deploymentFrequency.rating]} ${doraMetrics.deploymentFrequency.rating} |
+            | Lead Time for Changes | ${doraMetrics.leadTimeForChanges.medianHours?.toFixed(1) ?? 'N/A'}h | ${ratingEmoji[doraMetrics.leadTimeForChanges.rating]} ${doraMetrics.leadTimeForChanges.rating} |
+            | Change Failure Rate | ${doraMetrics.changeFailureRate.percentage.toFixed(1)}% | ${ratingEmoji[doraMetrics.changeFailureRate.rating]} ${doraMetrics.changeFailureRate.rating} |
             | Vulnerabilities | ${vulnerabilities.length} found | ${vulnerabilities.length === 0 ? '🟢' : '🔴'} |
 
             <details><summary>Full JSON Report</summary>

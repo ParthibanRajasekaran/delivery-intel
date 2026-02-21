@@ -53,20 +53,18 @@ export function parseRepoSlug(input: string): RepoIdentifier {
   const cleaned = input.trim().replace(/\.git$/, "");
 
   // Full URL: https://github.com/owner/repo
-  const urlMatch = cleaned.match(
-    /github\.com\/([A-Za-z0-9_.-]+)\/([A-Za-z0-9_.-]+)/
-  );
-  if (urlMatch) {return { owner: urlMatch[1], repo: urlMatch[2] };}
+  const urlMatch = cleaned.match(/github\.com\/([A-Za-z0-9_.-]+)\/([A-Za-z0-9_.-]+)/);
+  if (urlMatch) {
+    return { owner: urlMatch[1], repo: urlMatch[2] };
+  }
 
   // Slug: owner/repo
-  const slugMatch = cleaned.match(
-    /^([A-Za-z0-9_.-]+)\/([A-Za-z0-9_.-]+)$/
-  );
-  if (slugMatch) {return { owner: slugMatch[1], repo: slugMatch[2] };}
+  const slugMatch = cleaned.match(/^([A-Za-z0-9_.-]+)\/([A-Za-z0-9_.-]+)$/);
+  if (slugMatch) {
+    return { owner: slugMatch[1], repo: slugMatch[2] };
+  }
 
-  throw new Error(
-    `Invalid repository identifier: "${input}". Use "owner/repo" or a GitHub URL.`
-  );
+  throw new Error(`Invalid repository identifier: "${input}". Use "owner/repo" or a GitHub URL.`);
 }
 
 // ---------------------------------------------------------------------------
@@ -74,10 +72,7 @@ export function parseRepoSlug(input: string): RepoIdentifier {
 // ---------------------------------------------------------------------------
 
 /** Fetch the last N commits from the default branch. */
-export async function fetchRecentCommits(
-  id: RepoIdentifier,
-  count = 5
-): Promise<GitHubCommit[]> {
+export async function fetchRecentCommits(id: RepoIdentifier, count = 5): Promise<GitHubCommit[]> {
   const octokit = createOctokit();
   const { data } = await octokit.repos.listCommits({
     owner: id.owner,
@@ -90,7 +85,7 @@ export async function fetchRecentCommits(
 /** Fetch workflow runs (CI/CD pipelines). */
 export async function fetchWorkflowRuns(
   id: RepoIdentifier,
-  count = 30
+  count = 30,
 ): Promise<GitHubWorkflowRun[]> {
   const octokit = createOctokit();
   const { data } = await octokit.actions.listWorkflowRunsForRepo({
@@ -104,7 +99,7 @@ export async function fetchWorkflowRuns(
 /** Fetch formal GitHub Deployments. */
 export async function fetchDeployments(
   id: RepoIdentifier,
-  count = 30
+  count = 30,
 ): Promise<GitHubDeployment[]> {
   const octokit = createOctokit();
   const { data } = await octokit.repos.listDeployments({
@@ -118,7 +113,7 @@ export async function fetchDeployments(
 /** Fetch statuses for a single deployment. */
 export async function fetchDeploymentStatuses(
   id: RepoIdentifier,
-  deploymentId: number
+  deploymentId: number,
 ): Promise<GitHubDeploymentStatus[]> {
   const octokit = createOctokit();
   const { data } = await octokit.repos.listDeploymentStatuses({
@@ -132,7 +127,7 @@ export async function fetchDeploymentStatuses(
 /** Fetch recent merged pull requests to the default branch. */
 export async function fetchMergedPullRequests(
   id: RepoIdentifier,
-  count = 30
+  count = 30,
 ): Promise<GitHubPullRequest[]> {
   const octokit = createOctokit();
   const { data } = await octokit.pulls.list({
@@ -144,16 +139,11 @@ export async function fetchMergedPullRequests(
     per_page: count,
   });
   // Filter to only merged PRs
-  return (data as unknown as GitHubPullRequest[]).filter(
-    (pr) => pr.merged_at !== null
-  );
+  return (data as unknown as GitHubPullRequest[]).filter((pr) => pr.merged_at !== null);
 }
 
 /** Fetch the raw content of a file (e.g., package.json). Returns null if not found. */
-export async function fetchFileContent(
-  id: RepoIdentifier,
-  path: string
-): Promise<string | null> {
+export async function fetchFileContent(id: RepoIdentifier, path: string): Promise<string | null> {
   const octokit = createOctokit();
   try {
     const { data } = await octokit.repos.getContent({
@@ -238,7 +228,7 @@ const PR_DEPLOYMENTS_QUERY = `
  */
 export async function fetchPRsWithDeployments(
   id: RepoIdentifier,
-  count = 10
+  count = 10,
 ): Promise<GQLPullRequestsResponse> {
   const gql = createGraphQL();
   const response = await gql<GQLPullRequestsResponse>(PR_DEPLOYMENTS_QUERY, {

@@ -6,22 +6,26 @@ import type { DORAMetrics, DependencyVulnerability } from "@/types";
 // Helper: Build a DORAMetrics fixture with overrides
 // ---------------------------------------------------------------------------
 
-function makeDORA(overrides: Partial<{
-  deployFreq: number;
-  deployRating: string;
-  deploySource: string;
-  leadHours: number;
-  leadRating: string;
-  cfrPct: number;
-  cfrRating: string;
-  cfrFailed: number;
-  cfrTotal: number;
-}>): DORAMetrics {
+function makeDORA(
+  overrides: Partial<{
+    deployFreq: number;
+    deployRating: string;
+    deploySource: string;
+    leadHours: number;
+    leadRating: string;
+    cfrPct: number;
+    cfrRating: string;
+    cfrFailed: number;
+    cfrTotal: number;
+  }>,
+): DORAMetrics {
   return {
     deploymentFrequency: {
       deploymentsPerWeek: overrides.deployFreq ?? 5,
       rating: (overrides.deployRating ?? "High") as DORAMetrics["deploymentFrequency"]["rating"],
-      source: (overrides.deploySource ?? "deployments_api") as "deployments_api" | "merged_prs_fallback",
+      source: (overrides.deploySource ?? "deployments_api") as
+        | "deployments_api"
+        | "merged_prs_fallback",
     },
     leadTimeForChanges: {
       medianHours: overrides.leadHours ?? 12,
@@ -233,9 +237,9 @@ describe("computeOverallScore", () => {
 
   it("computes a blended score for mixed ratings", () => {
     const dora = makeDORA({
-      deployRating: "Elite",  // 100
-      leadRating: "Medium",   // 50
-      cfrRating: "High",      // 75
+      deployRating: "Elite", // 100
+      leadRating: "Medium", // 50
+      cfrRating: "High", // 75
     });
     // Average: (100 + 50 + 75) / 3 ≈ 75
     expect(computeOverallScore(dora, [])).toBe(75);

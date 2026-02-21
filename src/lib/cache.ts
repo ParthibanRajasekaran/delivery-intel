@@ -13,7 +13,9 @@ const DEFAULT_TTL = 300; // 5 minutes
 let redis: Redis | null = null;
 
 function getRedis(): Redis | null {
-  if (redis) {return redis;}
+  if (redis) {
+    return redis;
+  }
   try {
     redis = new Redis(REDIS_URL, {
       maxRetriesPerRequest: 1,
@@ -37,10 +39,14 @@ function getRedis(): Redis | null {
 export async function cacheGet<T>(key: string): Promise<T | null> {
   try {
     const client = getRedis();
-    if (!client) {return null;}
+    if (!client) {
+      return null;
+    }
     await client.connect().catch(() => {});
     const raw = await client.get(`di:${key}`);
-    if (!raw) {return null;}
+    if (!raw) {
+      return null;
+    }
     return JSON.parse(raw) as T;
   } catch {
     return null;
@@ -53,11 +59,13 @@ export async function cacheGet<T>(key: string): Promise<T | null> {
 export async function cacheSet<T>(
   key: string,
   value: T,
-  ttlSeconds: number = DEFAULT_TTL
+  ttlSeconds: number = DEFAULT_TTL,
 ): Promise<void> {
   try {
     const client = getRedis();
-    if (!client) {return;}
+    if (!client) {
+      return;
+    }
     await client.connect().catch(() => {});
     await client.set(`di:${key}`, JSON.stringify(value), "EX", ttlSeconds);
   } catch {
@@ -71,7 +79,9 @@ export async function cacheSet<T>(
 export async function cacheDelete(key: string): Promise<void> {
   try {
     const client = getRedis();
-    if (!client) {return;}
+    if (!client) {
+      return;
+    }
     await client.connect().catch(() => {});
     await client.del(`di:${key}`);
   } catch {

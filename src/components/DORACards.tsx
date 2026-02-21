@@ -78,10 +78,7 @@ function MetricCard({
           {rating}
         </motion.span>
       </div>
-      <p
-        className="text-[11px] mb-3 leading-relaxed"
-        style={{ color: "var(--text-muted)" }}
-      >
+      <p className="text-[11px] mb-3 leading-relaxed" style={{ color: "var(--text-muted)" }}>
         {description}
       </p>
       <div className="flex items-baseline gap-1.5">

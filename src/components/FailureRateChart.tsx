@@ -28,7 +28,11 @@ export function FailureRateChart({ metrics }: FailureRateChartProps) {
 
   const doraData = [
     { name: "Deploy Freq", value: metrics.deploymentFrequency.deploymentsPerWeek, max: 14 },
-    { name: "Lead Time (h)", value: Math.min(metrics.leadTimeForChanges.medianHours, 336), max: 336 },
+    {
+      name: "Lead Time (h)",
+      value: Math.min(metrics.leadTimeForChanges.medianHours, 336),
+      max: 336,
+    },
     { name: "Failure %", value: metrics.changeFailureRate.percentage, max: 100 },
   ];
 

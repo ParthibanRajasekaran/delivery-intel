@@ -36,8 +36,28 @@ describe("Deployment Frequency", () => {
     const twoWeeksAgo = new Date(now.getTime() - 14 * 24 * 60 * 60 * 1000);
 
     mocked(github.fetchDeployments).mockResolvedValue([
-      { id: 1, created_at: now.toISOString(), updated_at: now.toISOString(), environment: "production", sha: "abc", ref: "main", task: "deploy", description: null, statuses_url: "" },
-      { id: 2, created_at: twoWeeksAgo.toISOString(), updated_at: twoWeeksAgo.toISOString(), environment: "production", sha: "def", ref: "main", task: "deploy", description: null, statuses_url: "" },
+      {
+        id: 1,
+        created_at: now.toISOString(),
+        updated_at: now.toISOString(),
+        environment: "production",
+        sha: "abc",
+        ref: "main",
+        task: "deploy",
+        description: null,
+        statuses_url: "",
+      },
+      {
+        id: 2,
+        created_at: twoWeeksAgo.toISOString(),
+        updated_at: twoWeeksAgo.toISOString(),
+        environment: "production",
+        sha: "def",
+        ref: "main",
+        task: "deploy",
+        description: null,
+        statuses_url: "",
+      },
     ]);
     mocked(github.fetchMergedPullRequests).mockResolvedValue([]);
     mocked(github.fetchWorkflowRuns).mockResolvedValue([]);
@@ -168,10 +188,46 @@ describe("Change Failure Rate", () => {
     mocked(github.fetchDeployments).mockResolvedValue([]);
     mocked(github.fetchMergedPullRequests).mockResolvedValue([]);
     mocked(github.fetchWorkflowRuns).mockResolvedValue([
-      { id: 1, name: "CI", status: "completed", conclusion: "success", created_at: new Date().toISOString(), updated_at: new Date().toISOString(), head_branch: "main", html_url: "" },
-      { id: 2, name: "CI", status: "completed", conclusion: "failure", created_at: new Date().toISOString(), updated_at: new Date().toISOString(), head_branch: "main", html_url: "" },
-      { id: 3, name: "CI", status: "completed", conclusion: "success", created_at: new Date().toISOString(), updated_at: new Date().toISOString(), head_branch: "main", html_url: "" },
-      { id: 4, name: "CI", status: "completed", conclusion: "success", created_at: new Date().toISOString(), updated_at: new Date().toISOString(), head_branch: "main", html_url: "" },
+      {
+        id: 1,
+        name: "CI",
+        status: "completed",
+        conclusion: "success",
+        created_at: new Date().toISOString(),
+        updated_at: new Date().toISOString(),
+        head_branch: "main",
+        html_url: "",
+      },
+      {
+        id: 2,
+        name: "CI",
+        status: "completed",
+        conclusion: "failure",
+        created_at: new Date().toISOString(),
+        updated_at: new Date().toISOString(),
+        head_branch: "main",
+        html_url: "",
+      },
+      {
+        id: 3,
+        name: "CI",
+        status: "completed",
+        conclusion: "success",
+        created_at: new Date().toISOString(),
+        updated_at: new Date().toISOString(),
+        head_branch: "main",
+        html_url: "",
+      },
+      {
+        id: 4,
+        name: "CI",
+        status: "completed",
+        conclusion: "success",
+        created_at: new Date().toISOString(),
+        updated_at: new Date().toISOString(),
+        head_branch: "main",
+        html_url: "",
+      },
     ]);
 
     const result = await computeDORAMetrics(REPO);
@@ -186,8 +242,26 @@ describe("Change Failure Rate", () => {
     mocked(github.fetchDeployments).mockResolvedValue([]);
     mocked(github.fetchMergedPullRequests).mockResolvedValue([]);
     mocked(github.fetchWorkflowRuns).mockResolvedValue([
-      { id: 1, name: "CI", status: "completed", conclusion: "success", created_at: new Date().toISOString(), updated_at: new Date().toISOString(), head_branch: "main", html_url: "" },
-      { id: 2, name: "CI", status: "in_progress", conclusion: null, created_at: new Date().toISOString(), updated_at: new Date().toISOString(), head_branch: "main", html_url: "" },
+      {
+        id: 1,
+        name: "CI",
+        status: "completed",
+        conclusion: "success",
+        created_at: new Date().toISOString(),
+        updated_at: new Date().toISOString(),
+        head_branch: "main",
+        html_url: "",
+      },
+      {
+        id: 2,
+        name: "CI",
+        status: "in_progress",
+        conclusion: null,
+        created_at: new Date().toISOString(),
+        updated_at: new Date().toISOString(),
+        head_branch: "main",
+        html_url: "",
+      },
     ]);
 
     const result = await computeDORAMetrics(REPO);
