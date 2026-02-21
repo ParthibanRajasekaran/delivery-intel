@@ -23,10 +23,10 @@ export default defineConfig({
         "src/lib/vulnerabilities.ts", // OSV.dev integration
       ],
       thresholds: {
-        statements: 60,
-        branches: 50,
-        functions: 60,
-        lines: 60,
+        statements: 70,
+        branches: 60,
+        functions: 70,
+        lines: 70,
       },
     },
   },

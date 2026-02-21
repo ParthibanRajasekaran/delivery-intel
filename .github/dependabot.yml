@@ -1,0 +1,43 @@
+# ============================================================================
+# Dependabot — Automated Dependency Updates
+# ============================================================================
+# Keeps npm packages and GitHub Actions up-to-date.
+# PRs are grouped by ecosystem with auto-rebase enabled.
+# ============================================================================
+
+version: 2
+updates:
+  # npm dependencies
+  - package-ecosystem: npm
+    directory: /
+    schedule:
+      interval: weekly
+      day: monday
+    open-pull-requests-limit: 10
+    reviewers:
+      - ParthibanRajasekaran
+    labels:
+      - dependencies
+    groups:
+      # Group minor+patch updates together to reduce PR noise
+      production-deps:
+        dependency-type: production
+        update-types:
+          - minor
+          - patch
+      dev-deps:
+        dependency-type: development
+        update-types:
+          - minor
+          - patch
+
+  # GitHub Actions versions
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: weekly
+      day: monday
+    open-pull-requests-limit: 5
+    labels:
+      - ci
+      - dependencies
