@@ -2,8 +2,8 @@
 // Shared vulnerability scanning logic (no Next.js / @/ alias dependencies)
 // ============================================================================
 
-import type { ParsedDependency } from "./parsers";
-import { queryOSV, classifySeverity, extractFixedVersion } from "./osv";
+import type { ParsedDependency } from "./parsers.js";
+import { queryOSV, classifySeverity, extractFixedVersion } from "./osv.js";
 
 export interface VulnerabilityResult {
   packageName: string;

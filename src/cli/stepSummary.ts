@@ -6,7 +6,7 @@
 // ============================================================================
 
 import * as fs from "node:fs";
-import type { AnalysisResult, DORAMetrics, DependencyVulnerability } from "./analyzer";
+import type { AnalysisResult, DORAMetrics, DependencyVulnerability } from "./analyzer.js";
 
 // ---------------------------------------------------------------------------
 // SVG Progress Ring

@@ -7,8 +7,12 @@
 
 import type { Octokit } from "@octokit/rest";
 import { differenceInHours, differenceInCalendarWeeks, parseISO } from "date-fns";
-import { type ParsedDependency, parsePackageJson, parseRequirementsTxt } from "../shared/parsers";
-import { scanDependencies } from "../shared/scanner";
+import {
+  type ParsedDependency,
+  parsePackageJson,
+  parseRequirementsTxt,
+} from "../shared/parsers.js";
+import { scanDependencies } from "../shared/scanner.js";
 import {
   type RepoIdentifier,
   createOctokit,
@@ -17,7 +21,7 @@ import {
   fetchMergedPRs,
   fetchWorkflowRuns,
   fetchFileContent,
-} from "../shared/github";
+} from "../shared/github.js";
 
 // ---------------------------------------------------------------------------
 // Types (self-contained, no @/ alias)
