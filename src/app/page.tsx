@@ -30,7 +30,11 @@ function AnalysisSkeleton() {
         <div className="lg:col-span-1 skeleton-card h-52" />
         <div className="lg:col-span-3 grid grid-cols-1 sm:grid-cols-3 gap-4">
           {[0, 1, 2].map((i) => (
-            <div key={i} className="skeleton-card h-40" style={{ animationDelay: `${i * 0.15}s` }} />
+            <div
+              key={i}
+              className="skeleton-card h-40"
+              style={{ animationDelay: `${i * 0.15}s` }}
+            />
           ))}
         </div>
       </div>
@@ -54,7 +58,9 @@ export default function HomePage() {
 
   async function handleAnalyze(e: React.FormEvent) {
     e.preventDefault();
-    if (!repoInput.trim()) {return;}
+    if (!repoInput.trim()) {
+      return;
+    }
 
     setLoading(true);
     setError(null);
@@ -73,9 +79,7 @@ export default function HomePage() {
         setAnalysis(data as RepoAnalysis);
       }
     } catch (err) {
-      setError(
-        err instanceof Error ? err.message : "Network error. Check your connection."
-      );
+      setError(err instanceof Error ? err.message : "Network error. Check your connection.");
     } finally {
       setLoading(false);
     }
@@ -135,12 +139,10 @@ export default function HomePage() {
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.6, delay: 0.2 }}
         >
-          <h2 className="text-3xl font-bold mb-2 hero-gradient-text">
-            Analyze Any Repository
-          </h2>
+          <h2 className="text-3xl font-bold mb-2 hero-gradient-text">Analyze Any Repository</h2>
           <p style={{ color: "var(--text-muted)" }}>
-            Enter a GitHub repository URL or slug to get DORA metrics,
-            vulnerability scanning, and actionable insights.
+            Enter a GitHub repository URL or slug to get DORA metrics, vulnerability scanning, and
+            actionable insights.
           </p>
         </motion.div>
 
@@ -232,10 +234,7 @@ export default function HomePage() {
             animate="show"
           >
             {/* Top row: Score + DORA cards */}
-            <motion.div
-              className="grid grid-cols-1 lg:grid-cols-4 gap-6 mb-8"
-              variants={fadeUp}
-            >
+            <motion.div className="grid grid-cols-1 lg:grid-cols-4 gap-6 mb-8" variants={fadeUp}>
               <motion.div
                 className="lg:col-span-1 rounded-xl p-6 flex flex-col items-center justify-center glass-card"
                 whileHover={{ scale: 1.02, borderColor: "var(--accent)" }}
@@ -246,10 +245,7 @@ export default function HomePage() {
                 }}
               >
                 <ScoreRing score={analysis.overallScore} />
-                <p
-                  className="mt-3 text-xs font-medium"
-                  style={{ color: "var(--text-muted)" }}
-                >
+                <p className="mt-3 text-xs font-medium" style={{ color: "var(--text-muted)" }}>
                   Overall Health Score
                 </p>
                 <p className="text-xs mt-1" style={{ color: "var(--text-muted)" }}>
@@ -262,19 +258,13 @@ export default function HomePage() {
             </motion.div>
 
             {/* Middle row: Chart + Vulnerabilities */}
-            <motion.div
-              className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8"
-              variants={fadeUp}
-            >
+            <motion.div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8" variants={fadeUp}>
               <FailureRateChart metrics={analysis.doraMetrics} />
               <VulnerabilityTable vulnerabilities={analysis.vulnerabilities} />
             </motion.div>
 
             {/* Bottom row: Suggestions + Recent Commits */}
-            <motion.div
-              className="grid grid-cols-1 lg:grid-cols-3 gap-6"
-              variants={fadeUp}
-            >
+            <motion.div className="grid grid-cols-1 lg:grid-cols-3 gap-6" variants={fadeUp}>
               <div className="lg:col-span-2">
                 <SuggestionsPanel suggestions={analysis.suggestions} />
               </div>
@@ -311,16 +301,12 @@ export default function HomePage() {
               >
                 🔍
               </motion.div>
-              <p
-                className="text-lg font-medium mb-2"
-                style={{ color: "var(--text-muted)" }}
-              >
+              <p className="text-lg font-medium mb-2" style={{ color: "var(--text-muted)" }}>
                 No repository analyzed yet
               </p>
               <p className="text-sm" style={{ color: "var(--text-muted)" }}>
-                Enter a GitHub repository above to get started. We&apos;ll compute
-                DORA metrics, scan for vulnerabilities, and provide improvement
-                suggestions.
+                Enter a GitHub repository above to get started. We&apos;ll compute DORA metrics,
+                scan for vulnerabilities, and provide improvement suggestions.
               </p>
             </div>
           </motion.section>

@@ -13,7 +13,15 @@ export default defineConfig({
       provider: "v8",
       reporter: ["text", "text-summary", "lcov", "html"],
       include: ["src/lib/**", "src/cli/**"],
-      exclude: ["src/__tests__/setup.ts"],
+      exclude: [
+        "src/__tests__/setup.ts",
+        "src/cli/index.ts", // CLI entry point — side-effect-heavy, tested via E2E
+        "src/cli/scanSequence.ts", // spinner I/O — not unit-testable
+        "src/cli/analyzer.ts", // integration with Octokit APIs
+        "src/lib/cache.ts", // Redis integration
+        "src/lib/github.ts", // Octokit integration
+        "src/lib/vulnerabilities.ts", // OSV.dev integration
+      ],
       thresholds: {
         statements: 60,
         branches: 50,

@@ -11,7 +11,7 @@ import type { DORAMetrics, DependencyVulnerability, Suggestion } from "@/types";
  */
 export function generateSuggestions(
   dora: DORAMetrics,
-  vulnerabilities: DependencyVulnerability[]
+  vulnerabilities: DependencyVulnerability[],
 ): Suggestion[] {
   const suggestions: Suggestion[] = [];
 
@@ -125,10 +125,7 @@ export function generateSuggestions(
       actionItems: [
         ...critical
           .filter((v) => v.fixedVersion)
-          .map(
-            (v) =>
-              `Update ${v.packageName} to ${v.fixedVersion} (fixes ${v.vulnId})`
-          ),
+          .map((v) => `Update ${v.packageName} to ${v.fixedVersion} (fixes ${v.vulnId})`),
         "Run `npm audit fix` (or equivalent) to auto-patch where possible.",
         "Review the full vulnerability details and assess impact.",
       ],
@@ -145,10 +142,7 @@ export function generateSuggestions(
       actionItems: [
         ...high
           .filter((v) => v.fixedVersion)
-          .map(
-            (v) =>
-              `Update ${v.packageName} to ${v.fixedVersion} (fixes ${v.vulnId})`
-          ),
+          .map((v) => `Update ${v.packageName} to ${v.fixedVersion} (fixes ${v.vulnId})`),
         "Schedule these patches for your next sprint.",
       ],
     });
@@ -170,9 +164,7 @@ export function generateSuggestions(
 
   // Sort: high → medium → low
   const severityOrder = { high: 0, medium: 1, low: 2 };
-  suggestions.sort(
-    (a, b) => severityOrder[a.severity] - severityOrder[b.severity]
-  );
+  suggestions.sort((a, b) => severityOrder[a.severity] - severityOrder[b.severity]);
 
   return suggestions;
 }
@@ -191,7 +183,7 @@ const RATING_SCORES: Record<string, number> = {
 
 export function computeOverallScore(
   dora: DORAMetrics,
-  vulnerabilities: DependencyVulnerability[]
+  vulnerabilities: DependencyVulnerability[],
 ): number {
   const doraScore =
     (RATING_SCORES[dora.deploymentFrequency.rating] +
@@ -201,9 +193,15 @@ export function computeOverallScore(
 
   // Penalty for vulnerabilities: -5 per critical, -2 per high, -1 per medium
   const vulnPenalty = vulnerabilities.reduce((sum, v) => {
-    if (v.severity === "critical") {return sum + 5;}
-    if (v.severity === "high") {return sum + 2;}
-    if (v.severity === "medium") {return sum + 1;}
+    if (v.severity === "critical") {
+      return sum + 5;
+    }
+    if (v.severity === "high") {
+      return sum + 2;
+    }
+    if (v.severity === "medium") {
+      return sum + 1;
+    }
     return sum;
   }, 0);
 

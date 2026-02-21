@@ -1,6 +1,6 @@
 {
   "name": "delivery-intel",
-  "version": "1.0.2",
+  "version": "1.1.0",
   "description": "Point it at any GitHub repo — get DORA metrics, vulnerability scan, and a health score. No setup, no tokens for public repos. CLI + web dashboard.",
   "keywords": [
     "dora",
@@ -89,6 +89,7 @@
     "@testing-library/react": "^16.3.2",
     "@types/react-dom": "^19.2.3",
     "@vitejs/plugin-react": "^5.1.4",
+    "@vitest/coverage-v8": "^4.0.18",
     "autoprefixer": "^10.4.24",
     "eslint": "^10.0.0",
     "eslint-config-next": "^16.1.6",

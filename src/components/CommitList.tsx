@@ -8,13 +8,21 @@ interface CommitListProps {
 }
 
 function timeAgo(dateStr: string | null): string {
-  if (!dateStr) {return "";}
+  if (!dateStr) {
+    return "";
+  }
   const diff = Date.now() - new Date(dateStr).getTime();
   const hours = Math.floor(diff / 3600000);
-  if (hours < 1) {return "just now";}
-  if (hours < 24) {return `${hours}h ago`;}
+  if (hours < 1) {
+    return "just now";
+  }
+  if (hours < 24) {
+    return `${hours}h ago`;
+  }
   const days = Math.floor(hours / 24);
-  if (days < 30) {return `${days}d ago`;}
+  if (days < 30) {
+    return `${days}d ago`;
+  }
   return `${Math.floor(days / 30)}mo ago`;
 }
 
@@ -80,9 +88,7 @@ export function CommitList({ commits }: CommitListProps) {
               </div>
             )}
             <div className="flex-1 min-w-0">
-              <p className="text-xs font-medium truncate">
-                {c.commit.message.split("\n")[0]}
-              </p>
+              <p className="text-xs font-medium truncate">{c.commit.message.split("\n")[0]}</p>
               <div
                 className="flex items-center gap-2 mt-1 text-[11px]"
                 style={{ color: "var(--text-muted)" }}

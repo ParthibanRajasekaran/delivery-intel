@@ -5,7 +5,7 @@
 // Uses Redis caching to stay under GitHub API rate limits.
 // ============================================================================
 
-import type { NextRequest} from "next/server";
+import type { NextRequest } from "next/server";
 import { NextResponse } from "next/server";
 import { parseRepoSlug, fetchRecentCommits } from "@/lib/github";
 import { computeDORAMetrics } from "@/lib/metrics";
@@ -22,7 +22,7 @@ export async function POST(request: NextRequest) {
     if (!repoInput || typeof repoInput !== "string") {
       return NextResponse.json(
         { error: 'Missing required field: "repo" (e.g., "vercel/next.js").' },
-        { status: 400 }
+        { status: 400 },
       );
     }
 
@@ -78,13 +78,10 @@ export async function POST(request: NextRequest) {
           error:
             "GitHub API rate limit exceeded. Please wait a few minutes and try again, or provide a personal access token with higher limits.",
         },
-        { status: 429 }
+        { status: 429 },
       );
     }
 
-    return NextResponse.json(
-      { error: `Analysis failed: ${message}` },
-      { status: 500 }
-    );
+    return NextResponse.json({ error: `Analysis failed: ${message}` }, { status: 500 });
   }
 }

@@ -140,7 +140,7 @@ export interface DependencyVulnerability {
   vulnId: string;
   summary: string;
   severity: string;
-  aliases: string[];   // CVE IDs
+  aliases: string[]; // CVE IDs
   fixedVersion: string | null;
 }
 
@@ -163,7 +163,7 @@ export interface DORAMetrics {
     rating: "Elite" | "High" | "Medium" | "Low";
   };
   meanTimeToRestore: {
-    medianHours: number | null;  // null if no failures found
+    medianHours: number | null; // null if no failures found
     rating: "Elite" | "High" | "Medium" | "Low" | "N/A";
   };
 }
@@ -183,5 +183,5 @@ export interface RepoAnalysis {
   doraMetrics: DORAMetrics;
   vulnerabilities: DependencyVulnerability[];
   suggestions: Suggestion[];
-  overallScore: number;  // 0–100
+  overallScore: number; // 0–100
 }
