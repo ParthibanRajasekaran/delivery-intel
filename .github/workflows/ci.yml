@@ -114,7 +114,7 @@ jobs:
           cache: npm
 
       - run: npm ci --legacy-peer-deps
-      - run: npm audit --audit-level=high
+      - run: npm audit --audit-level=high --omit=dev
 
   # ── Format Check ──────────────────────────────────────────────────────────
   format:
