@@ -68,7 +68,7 @@ describe.skipIf(!CLI_BUILT)("CLI smoke tests", () => {
     // Run without any GitHub token to test auth-failure path
     const result = (() => {
       try {
-        const stdout = execFileSync("node", [BIN, "owner/repo", "--no-spinner"], {
+        const stdout = execFileSync(NODE, [BIN, "owner/repo", "--no-spinner"], {
           encoding: "utf-8",
           timeout: 15_000,
           env: {
@@ -76,6 +76,7 @@ describe.skipIf(!CLI_BUILT)("CLI smoke tests", () => {
             GH_TOKEN: "",
             NODE_ENV: "test",
             HOME: process.env.HOME ?? "",
+            PATH: "",
           },
         });
         return { stdout, code: 0 };
