@@ -15,9 +15,11 @@ import type { AnalysisResult } from "./analyzer";
 import { renderCyberReport } from "./cyberRenderer";
 import { withScanSequence } from "./scanSequence";
 import { writeStepSummary } from "./stepSummary";
+import { computeRiskScore, type RiskBreakdown } from "./riskEngine";
+import { generateNarrativeSummary, generateFallbackNarrative } from "./narrativeSummary";
 import chalk from "chalk";
-import * as fs from "fs";
-import { execSync } from "child_process";
+import * as fs from "node:fs";
+import { execSync } from "node:child_process";
 
 // ---------------------------------------------------------------------------
 // Secure token resolution
@@ -72,7 +74,7 @@ const bold = chalk.bold.white;
 // Help & Version
 // ---------------------------------------------------------------------------
 
-const VERSION = "1.1.0";
+const VERSION = "1.2.0";
 
 function printHelp(): void {
   console.log(`
@@ -86,13 +88,15 @@ ${bold("EXAMPLES")}
   ${cyan("npx delivery-intel")} vercel/next.js
   ${cyan("npx delivery-intel")} https://github.com/facebook/react
   ${cyan("npx delivery-intel")} vercel/next.js ${dim("--json")}
-  ${cyan("npx delivery-intel")} vercel/next.js ${dim("--json --output report.json")}
+  ${cyan("npx delivery-intel")} vercel/next.js ${dim("--risk --narrative")}
 
 ${bold("OPTIONS")}
   ${chalk.hex("#ffbe0b")("--json")}            Output raw JSON instead of formatted report
   ${chalk.hex("#ffbe0b")("--output <file>")}   Write JSON output to a file
   ${chalk.hex("#ffbe0b")("--token <token>")}   GitHub token (not recommended — prefer gh auth)
   ${chalk.hex("#ffbe0b")("--no-spinner")}      Disable the scanning animation
+  ${chalk.hex("#ffbe0b")("--risk")}            Include Burnout Risk Score analysis
+  ${chalk.hex("#ffbe0b")("--narrative")}       Generate executive narrative summary (LLM or fallback)
   ${chalk.hex("#ffbe0b")("--help")}            Show this help message
   ${chalk.hex("#ffbe0b")("--version")}         Show version number
 
@@ -101,6 +105,12 @@ ${bold("AUTHENTICATION")} ${dim("(token is resolved in this order)")}
                       Install: https://cli.github.com
   ${chalk.hex("#ffbe0b")("2. GITHUB_TOKEN")}    Environment variable (OK for CI — use secrets)
   ${red("3. --token")}         Inline flag (avoid — visible in shell history & ps)
+
+${bold("LLM NARRATIVE")} ${dim("(env vars for AI-powered summary)")}
+  ${chalk.hex("#ffbe0b")("DELIVERY_INTEL_LLM_API_KEY")}    API key (required for LLM mode)
+  ${chalk.hex("#ffbe0b")("DELIVERY_INTEL_LLM_BASE_URL")}   Base URL (default: OpenAI)
+  ${chalk.hex("#ffbe0b")("DELIVERY_INTEL_LLM_MODEL")}      Model name (default: gpt-4o-mini)
+  ${dim("Without an API key, --narrative uses a template-based fallback.")}
 
 ${bold("CI / GITHUB ACTIONS")}
   The built-in $GITHUB_TOKEN is auto-scoped and expires per job:
@@ -111,6 +121,7 @@ ${bold("WHAT IT MEASURES")}
   ${bold("Deploy Frequency")}     How often code ships to production
   ${bold("Lead Time")}            PR creation → merge (branch active duration)
   ${bold("Change Failure Rate")}  % of deployment pipeline runs that failed
+  ${bold("Burnout Risk")}         Predictive team strain from velocity/stability deltas
   ${bold("Vulnerabilities")}      OSV.dev scan of dependency manifests
 `);
 }
@@ -135,6 +146,8 @@ async function main(): Promise<void> {
   // Parse args
   const jsonMode = args.includes("--json");
   const noSpinner = args.includes("--no-spinner");
+  const riskMode = args.includes("--risk");
+  const narrativeMode = args.includes("--narrative");
   let outputFile: string | null = null;
   let token: string | null = null;
   let repo: string | null = null;
@@ -195,9 +208,48 @@ async function main(): Promise<void> {
       result = await analysisTask;
     }
 
+    // ---- Burnout Risk Score (when requested) ----------------------------
+    let risk: RiskBreakdown | undefined;
+    if (riskMode) {
+      risk = computeRiskScore({ doraMetrics: result.doraMetrics });
+    }
+
+    // ---- Executive Narrative (when requested) ---------------------------
+    let narrative: string | undefined;
+    let narrativeModel = "template";
+    if (narrativeMode) {
+      try {
+        const llmResult = await generateNarrativeSummary({ analysis: result, risk });
+        if (llmResult) {
+          narrative = llmResult.narrative;
+          narrativeModel = llmResult.model;
+        }
+      } catch (llmErr: unknown) {
+        // LLM failed — fall back to template and surface a non-fatal warning
+        if (!jsonMode) {
+          const llmMsg = llmErr instanceof Error ? llmErr.message : String(llmErr);
+          console.log(
+            "  " +
+              chalk.hex("#ffbe0b")("⚠  LLM narrative failed, using template fallback: ") +
+              dim(llmMsg),
+          );
+        }
+      }
+      // Fall back to template if LLM didn't produce a narrative
+      if (!narrative) {
+        narrative = generateFallbackNarrative({ analysis: result, risk });
+        narrativeModel = "template";
+      }
+    }
+
     // ---- JSON output (machine-readable, unstyled) -----------------------
     if (jsonMode || outputFile) {
-      const json = JSON.stringify(result, null, 2);
+      const output = {
+        ...result,
+        ...(risk ? { riskScore: risk } : {}),
+        ...(narrative ? { narrative } : {}),
+      };
+      const json = JSON.stringify(output, null, 2);
       if (outputFile) {
         fs.writeFileSync(outputFile, json, "utf-8");
         if (!jsonMode) {
@@ -209,7 +261,7 @@ async function main(): Promise<void> {
       }
     } else {
       // ---- Cyber-Diagnostic human output --------------------------------
-      console.log(renderCyberReport(result));
+      console.log(renderCyberReport(result, { risk, narrative, narrativeModel }));
     }
 
     // ---- GitHub Actions Step Summary ------------------------------------

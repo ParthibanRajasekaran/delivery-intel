@@ -244,4 +244,23 @@ describe("computeOverallScore", () => {
     // Average: (100 + 50 + 75) / 3 ≈ 75
     expect(computeOverallScore(dora, [])).toBe(75);
   });
+
+  it("excludes N/A ratings from the average", () => {
+    const dora = makeDORA({
+      deployRating: "Elite", // 100
+      leadRating: "N/A", // excluded
+      cfrRating: "Low", // 25
+    });
+    // Average of scored metrics only: (100 + 25) / 2 = 62.5 → 63
+    expect(computeOverallScore(dora, [])).toBe(63);
+  });
+
+  it("returns 50 when all ratings are N/A", () => {
+    const dora = makeDORA({
+      deployRating: "N/A",
+      leadRating: "N/A",
+      cfrRating: "N/A",
+    });
+    expect(computeOverallScore(dora, [])).toBe(50);
+  });
 });

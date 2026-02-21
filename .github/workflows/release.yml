@@ -10,13 +10,12 @@ on:
   release:
     types: [published]
 
-permissions:
-  contents: read
-
 jobs:
   publish:
     name: Publish to npm
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
     steps:
       - uses: actions/checkout@v4
 

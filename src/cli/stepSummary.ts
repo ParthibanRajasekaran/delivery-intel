@@ -5,7 +5,7 @@
 // Includes a color-coded SVG Progress Ring for the health score.
 // ============================================================================
 
-import * as fs from "fs";
+import * as fs from "node:fs";
 import type { AnalysisResult, DORAMetrics, DependencyVulnerability } from "./analyzer";
 
 // ---------------------------------------------------------------------------

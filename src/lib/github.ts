@@ -2,7 +2,7 @@
 // GitHub REST + GraphQL Service Layer
 // ============================================================================
 
-import { Octokit } from "@octokit/rest";
+import type { Octokit } from "@octokit/rest";
 import { graphql } from "@octokit/graphql";
 import type {
   RepoIdentifier,
@@ -13,12 +13,17 @@ import type {
   GitHubPullRequest,
   GQLPullRequestsResponse,
 } from "@/types";
+import {
+  parseRepoSlug as _parseRepoSlug,
+  createOctokit as _createOctokit,
+  fetchDeployments as _fetchDeployments,
+  fetchMergedPRs as _fetchMergedPRs,
+  fetchWorkflowRuns as _fetchWorkflowRuns,
+  fetchFileContent as _fetchFileContent,
+} from "../shared/github";
 
 // ---------------------------------------------------------------------------
 // Client factory
-// ---------------------------------------------------------------------------
-// Token is optional — unauthenticated requests work for public repos
-// but are limited to 60 req/hr (vs 5,000 with a token).
 // ---------------------------------------------------------------------------
 
 function getToken(): string | undefined {
@@ -26,14 +31,12 @@ function getToken(): string | undefined {
 }
 
 function createOctokit(): Octokit {
-  const token = getToken();
-  return token ? new Octokit({ auth: token }) : new Octokit();
+  return _createOctokit(getToken());
 }
 
 function createGraphQL() {
   const token = getToken();
   if (!token) {
-    // GraphQL requires auth — return a function that throws a clear error
     return (() => {
       throw new Error("GraphQL API requires authentication. Set GITHUB_TOKEN for this feature.");
     }) as unknown as ReturnType<typeof graphql.defaults>;
@@ -44,31 +47,13 @@ function createGraphQL() {
 }
 
 // ---------------------------------------------------------------------------
-// Helpers
+// Re-export parseRepoSlug from shared module
 // ---------------------------------------------------------------------------
 
-/** Parse "owner/repo" or a full GitHub URL into { owner, repo }. */
-export function parseRepoSlug(input: string): RepoIdentifier {
-  // Strip trailing .git and whitespace
-  const cleaned = input.trim().replace(/\.git$/, "");
-
-  // Full URL: https://github.com/owner/repo
-  const urlMatch = cleaned.match(/github\.com\/([A-Za-z0-9_.-]+)\/([A-Za-z0-9_.-]+)/);
-  if (urlMatch) {
-    return { owner: urlMatch[1], repo: urlMatch[2] };
-  }
-
-  // Slug: owner/repo
-  const slugMatch = cleaned.match(/^([A-Za-z0-9_.-]+)\/([A-Za-z0-9_.-]+)$/);
-  if (slugMatch) {
-    return { owner: slugMatch[1], repo: slugMatch[2] };
-  }
-
-  throw new Error(`Invalid repository identifier: "${input}". Use "owner/repo" or a GitHub URL.`);
-}
+export const parseRepoSlug = _parseRepoSlug;
 
 // ---------------------------------------------------------------------------
-// REST API calls
+// REST API calls (thin wrappers over shared helpers)
 // ---------------------------------------------------------------------------
 
 /** Fetch the last N commits from the default branch. */
@@ -87,13 +72,8 @@ export async function fetchWorkflowRuns(
   id: RepoIdentifier,
   count = 30,
 ): Promise<GitHubWorkflowRun[]> {
-  const octokit = createOctokit();
-  const { data } = await octokit.actions.listWorkflowRunsForRepo({
-    owner: id.owner,
-    repo: id.repo,
-    per_page: count,
-  });
-  return data.workflow_runs as unknown as GitHubWorkflowRun[];
+  const runs = await _fetchWorkflowRuns(createOctokit(), id, count);
+  return runs as unknown as GitHubWorkflowRun[];
 }
 
 /** Fetch formal GitHub Deployments. */
@@ -101,13 +81,8 @@ export async function fetchDeployments(
   id: RepoIdentifier,
   count = 30,
 ): Promise<GitHubDeployment[]> {
-  const octokit = createOctokit();
-  const { data } = await octokit.repos.listDeployments({
-    owner: id.owner,
-    repo: id.repo,
-    per_page: count,
-  });
-  return data as unknown as GitHubDeployment[];
+  const deployments = await _fetchDeployments(createOctokit(), id, count);
+  return deployments as unknown as GitHubDeployment[];
 }
 
 /** Fetch statuses for a single deployment. */
@@ -129,35 +104,13 @@ export async function fetchMergedPullRequests(
   id: RepoIdentifier,
   count = 30,
 ): Promise<GitHubPullRequest[]> {
-  const octokit = createOctokit();
-  const { data } = await octokit.pulls.list({
-    owner: id.owner,
-    repo: id.repo,
-    state: "closed",
-    sort: "updated",
-    direction: "desc",
-    per_page: count,
-  });
-  // Filter to only merged PRs
-  return (data as unknown as GitHubPullRequest[]).filter((pr) => pr.merged_at !== null);
+  const prs = await _fetchMergedPRs(createOctokit(), id, count);
+  return prs as unknown as GitHubPullRequest[];
 }
 
 /** Fetch the raw content of a file (e.g., package.json). Returns null if not found. */
 export async function fetchFileContent(id: RepoIdentifier, path: string): Promise<string | null> {
-  const octokit = createOctokit();
-  try {
-    const { data } = await octokit.repos.getContent({
-      owner: id.owner,
-      repo: id.repo,
-      path,
-    });
-    if ("content" in data && typeof data.content === "string") {
-      return Buffer.from(data.content, "base64").toString("utf-8");
-    }
-    return null;
-  } catch {
-    return null;
-  }
+  return _fetchFileContent(createOctokit(), id, path);
 }
 
 /** Get the default branch name for a repo. */

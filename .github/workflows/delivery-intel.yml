@@ -23,14 +23,13 @@ on:
     # Weekly report every Monday at 8 AM UTC
     - cron: "0 8 * * 1"
 
-permissions:
-  contents: read
-  pull-requests: write
-
 jobs:
   analyze:
     name: DORA & Vulnerability Analysis
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      pull-requests: write
 
     steps:
       - uses: actions/checkout@v4

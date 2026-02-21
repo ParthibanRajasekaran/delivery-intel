@@ -142,6 +142,9 @@ async function computeLeadTime(id: RepoIdentifier): Promise<DORAMetrics["leadTim
   const hours = mergedPRs
     .filter((pr) => pr.merged_at)
     .map((pr) => differenceInHours(parseISO(pr.merged_at!), parseISO(pr.created_at)));
+  if (hours.length === 0) {
+    return { medianHours: 0, rating: "N/A" };
+  }
   const med = median(hours);
   return { medianHours: +med.toFixed(1), rating: rateLeadTime(med) };
 }
@@ -156,13 +159,13 @@ async function computeChangeFailureRate(
   const runs: GitHubWorkflowRun[] = await fetchWorkflowRuns(id, 50);
 
   if (runs.length === 0) {
-    return { percentage: 0, failedRuns: 0, totalRuns: 0, rating: "Elite" };
+    return { percentage: 0, failedRuns: 0, totalRuns: 0, rating: "N/A" };
   }
 
   // Only consider completed runs (ignore in_progress / queued)
   const completed = runs.filter((r) => r.status === "completed");
   if (completed.length === 0) {
-    return { percentage: 0, failedRuns: 0, totalRuns: 0, rating: "Elite" };
+    return { percentage: 0, failedRuns: 0, totalRuns: 0, rating: "N/A" };
   }
 
   const failures = completed.filter((r) => r.conclusion === "failure");
@@ -224,17 +227,18 @@ async function _computeMTTR(id: RepoIdentifier): Promise<DORAMetrics["meanTimeTo
 // ---------------------------------------------------------------------------
 
 export async function computeDORAMetrics(id: RepoIdentifier): Promise<DORAMetrics> {
-  const [deploymentFrequency, leadTimeForChanges, changeFailureRate] = await Promise.all([
-    computeDeploymentFrequency(id),
-    computeLeadTime(id),
-    computeChangeFailureRate(id),
-  ]);
+  const [deploymentFrequency, leadTimeForChanges, changeFailureRate, meanTimeToRestore] =
+    await Promise.all([
+      computeDeploymentFrequency(id),
+      computeLeadTime(id),
+      computeChangeFailureRate(id),
+      _computeMTTR(id),
+    ]);
 
   return {
     deploymentFrequency,
     leadTimeForChanges,
     changeFailureRate,
-    // MTTR is kept in the type for completeness but not actively computed
-    meanTimeToRestore: { medianHours: null, rating: "N/A" as const },
+    meanTimeToRestore,
   };
 }

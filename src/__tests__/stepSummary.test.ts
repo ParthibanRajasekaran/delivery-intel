@@ -1,6 +1,13 @@
-import { describe, it, expect } from "vitest";
-import { svgProgressRing, generateStepSummaryMarkdown } from "../cli/stepSummary";
+import { describe, it, expect, vi, afterEach } from "vitest";
+import { svgProgressRing, generateStepSummaryMarkdown, writeStepSummary } from "../cli/stepSummary";
 import type { AnalysisResult } from "../cli/analyzer";
+
+vi.mock("node:fs", async (importOriginal) => {
+  const actual = await importOriginal<object>();
+  return { ...actual, appendFileSync: vi.fn() };
+});
+
+import * as fs from "node:fs";
 
 // ---------------------------------------------------------------------------
 // Helper
@@ -154,5 +161,107 @@ describe("generateStepSummaryMarkdown", () => {
     expect(generateStepSummaryMarkdown(makeResult(90))).toContain("Excellent");
     expect(generateStepSummaryMarkdown(makeResult(65))).toContain("Moderate");
     expect(generateStepSummaryMarkdown(makeResult(30))).toContain("Critical");
+  });
+
+  it("renders suggestions with per-category icons", () => {
+    const result = makeResult(60);
+    result.suggestions = [
+      {
+        category: "security",
+        severity: "high",
+        title: "Critical Vuln",
+        description: "Fix it",
+        actionItems: ["Update"],
+      },
+      {
+        category: "reliability",
+        severity: "medium",
+        title: "Flaky Tests",
+        description: "Stabilize",
+        actionItems: ["Retry"],
+      },
+      {
+        category: "performance",
+        severity: "low",
+        title: "Slow CI",
+        description: "Optimize",
+        actionItems: ["Cache"],
+      },
+    ];
+    const md = generateStepSummaryMarkdown(result);
+
+    expect(md).toContain("🔒"); // security
+    expect(md).toContain("🛡️"); // reliability
+    expect(md).toContain("⚡"); // performance
+    expect(md).toContain("Critical Vuln");
+  });
+
+  it("truncates when more than 15 vulnerabilities", () => {
+    const result = makeResult(20);
+    result.vulnerabilities = Array.from({ length: 18 }, (_, i) => ({
+      packageName: `pkg-${i}`,
+      currentVersion: "1.0.0",
+      vulnId: `GHSA-${i}`,
+      summary: "Issue",
+      severity: "high",
+      aliases: [],
+      fixedVersion: null,
+    }));
+    const md = generateStepSummaryMarkdown(result);
+
+    expect(md).toContain("…and 3 more");
+  });
+
+  it("renders N/A and unknown rating emojis", () => {
+    const result = makeResult(50);
+    result.doraMetrics.deploymentFrequency.rating = "Low";
+    result.doraMetrics.leadTimeForChanges.rating = "Medium";
+    result.doraMetrics.changeFailureRate.rating = "N/A" as string;
+    const md = generateStepSummaryMarkdown(result);
+
+    // Low → 🔴, Medium → 🟡, N/A → ⚪ (default)
+    expect(md).toContain("🔴");
+    expect(md).toContain("🟡");
+    expect(md).toContain("⚪");
+  });
+});
+
+// ---------------------------------------------------------------------------
+// writeStepSummary
+// ---------------------------------------------------------------------------
+
+describe("writeStepSummary", () => {
+  const origEnv = process.env.GITHUB_STEP_SUMMARY;
+
+  afterEach(() => {
+    if (origEnv === undefined) {
+      delete process.env.GITHUB_STEP_SUMMARY;
+    } else {
+      process.env.GITHUB_STEP_SUMMARY = origEnv;
+    }
+    vi.restoreAllMocks();
+  });
+
+  it("returns false when GITHUB_STEP_SUMMARY is not set", () => {
+    delete process.env.GITHUB_STEP_SUMMARY;
+    expect(writeStepSummary(makeResult(80))).toBe(false);
+  });
+
+  it("returns true and writes file when GITHUB_STEP_SUMMARY is set", () => {
+    process.env.GITHUB_STEP_SUMMARY = "step-summary-test.md";
+    const mock = vi.mocked(fs.appendFileSync);
+    mock.mockImplementation(() => {});
+
+    expect(writeStepSummary(makeResult(80))).toBe(true);
+    expect(mock).toHaveBeenCalledOnce();
+  });
+
+  it("returns false when fs.appendFileSync throws", () => {
+    process.env.GITHUB_STEP_SUMMARY = "step-summary-test.md";
+    vi.mocked(fs.appendFileSync).mockImplementation(() => {
+      throw new Error("EACCES");
+    });
+
+    expect(writeStepSummary(makeResult(80))).toBe(false);
   });
 });
