@@ -28,7 +28,10 @@ RUN npm ci --ignore-scripts 2>/dev/null || npm install --ignore-scripts
 # ---------------------------------------------------------------------------
 FROM base AS builder
 COPY --from=deps /app/node_modules ./node_modules
-COPY . .
+COPY src ./src
+COPY public ./public
+COPY bin ./bin
+COPY tsconfig.json tsconfig.cli.json next.config.js postcss.config.js next-env.d.ts ./
 
 # Build CLI
 RUN npm run build:cli
