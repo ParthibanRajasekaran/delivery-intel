@@ -206,9 +206,14 @@ export function renderHygieneMarkdown(report: HygieneReport): string {
   lines.push("");
 
   const failCount = report.checks.filter((c) => c.status === "fail").length;
+  const warnCount = report.checks.filter((c) => c.status === "warn").length;
   if (failCount > 0) {
     lines.push(
       `> **${failCount} check(s) failed.** Address the issues above to improve engineering hygiene.`,
+    );
+  } else if (warnCount > 0) {
+    lines.push(
+      `> **${warnCount} check(s) skipped or need attention.** No failures, but review the warnings above.`,
     );
   } else {
     lines.push("> All checks passed. Great engineering hygiene! 🎉");

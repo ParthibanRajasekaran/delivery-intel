@@ -105,4 +105,17 @@ describe("renderHygieneMarkdown", () => {
     expect(md).toContain("All checks passed");
     expect(md).toContain("🎉");
   });
+
+  it("shows warn message when checks have warnings but no failures", () => {
+    const report = makeReport(
+      [
+        { name: "README.md", status: "pass", detail: "Present" },
+        { name: "Coverage", status: "warn", detail: "Skipped" },
+      ],
+      "warn",
+    );
+    const md = renderHygieneMarkdown(report);
+    expect(md).toContain("1 check(s) skipped or need attention");
+    expect(md).not.toContain("All checks passed");
+  });
 });

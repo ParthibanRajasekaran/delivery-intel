@@ -33,9 +33,9 @@ jobs:
 
       - run: npm ci --legacy-peer-deps
 
-      # Run tests with coverage to extract the percentage
+      # Run tests with coverage (json-summary reporter produces coverage-summary.json)
       - name: Run tests with coverage
-        run: npm run test:coverage -- --reporter=json --outputFile=coverage-results.json || true
+        run: npm run test:coverage -- --coverage.reporter=json-summary || true
 
       # Build the CLI so we can use the hygiene check module
       - name: Build CLI
