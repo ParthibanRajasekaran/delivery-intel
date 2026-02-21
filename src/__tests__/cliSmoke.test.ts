@@ -14,18 +14,23 @@ import * as path from "path";
 // CI unit-test step that runs before `build:cli`), the suite is skipped.
 //
 // Uses execFileSync (no shell) to avoid command-injection hotspots.
+// The node executable is referenced by its absolute path (process.execPath)
+// so child_process never searches PATH for it (S4036).
 // ---------------------------------------------------------------------------
 
 const BIN = path.resolve(__dirname, "../../bin/delivery-intel.js");
 const DIST_ENTRY = path.resolve(__dirname, "../../dist/cli/index.js");
 const CLI_BUILT = fs.existsSync(DIST_ENTRY);
 
+/** Absolute path to the current Node.js binary – avoids PATH look-up. */
+const NODE = process.execPath;
+
 function run(args: string[]): { stdout: string; code: number } {
   try {
-    const stdout = execFileSync("node", [BIN, ...args], {
+    const stdout = execFileSync(NODE, [BIN, ...args], {
       encoding: "utf-8",
       timeout: 15_000,
-      env: { ...process.env, NODE_ENV: "test" },
+      env: { NODE_ENV: "test", PATH: "" },
     });
     return { stdout, code: 0 };
   } catch (err: unknown) {
