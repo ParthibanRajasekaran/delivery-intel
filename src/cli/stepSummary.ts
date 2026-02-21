@@ -26,7 +26,7 @@ export function svgProgressRing(score: number, size = 120): string {
   const cy = size / 2;
 
   let ringColor: string;
-  if (score > 80) {
+  if (score >= 80) {
     ringColor = "#39ff14"; // Neon Green
   } else if (score >= 50) {
     ringColor = "#ffbe0b"; // Amber / Yellow
@@ -41,7 +41,7 @@ export function svgProgressRing(score: number, size = 120): string {
     `<circle cx="${cx}" cy="${cy}" r="${radius}" fill="none" stroke="${ringColor}" stroke-width="10"`,
     ` stroke-linecap="round" stroke-dasharray="${circumference.toFixed(2)}"`,
     ` stroke-dashoffset="${offset.toFixed(2)}" transform="rotate(-90 ${cx} ${cy})"/>`,
-    `<text x="${cx}" y="${cx}" text-anchor="middle" dominant-baseline="central"`,
+    `<text x="${cx}" y="${cy}" text-anchor="middle" dominant-baseline="central"`,
     ` font-size="28" font-weight="bold" fill="${ringColor}">${score}</text>`,
     `</svg>`,
   ].join("");
@@ -52,7 +52,7 @@ export function svgProgressRing(score: number, size = 120): string {
 // ---------------------------------------------------------------------------
 
 function scoreLabel(score: number): string {
-  if (score > 80) {
+  if (score >= 80) {
     return "🟢 Excellent";
   }
   if (score >= 50) {

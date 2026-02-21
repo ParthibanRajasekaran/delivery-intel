@@ -36,12 +36,20 @@ const bold = chalk.bold.white;
  * Wraps text in a Unicode single-line box with the given chalk color.
  * Falls back to boxen for the health-score hero card.
  */
+const ALLOWED_BORDER_COLORS = ["cyan", "green", "red", "yellow"] as const;
+type BorderColor = (typeof ALLOWED_BORDER_COLORS)[number];
+
 function drawBox(
   content: string,
   opts: { borderColor?: string; title?: string; padding?: number } = {},
 ): string {
+  const borderColor: BorderColor =
+    opts.borderColor && ALLOWED_BORDER_COLORS.includes(opts.borderColor as BorderColor)
+      ? (opts.borderColor as BorderColor)
+      : "cyan";
+
   return boxen(content, {
-    borderColor: (opts.borderColor ?? "cyan") as "cyan" | "green" | "red" | "yellow",
+    borderColor,
     borderStyle: "round" as const,
     padding: opts.padding ?? 1,
     title: opts.title,
@@ -78,11 +86,11 @@ export function sparkline(values: number[]): string {
 function ratingBadge(rating: string): string {
   switch (rating) {
     case "Elite":
-      return green.bold(` ★ ${rating} `);
+      return green.bold(` ★ ${rating}  `);
     case "High":
-      return blue.bold(` ● ${rating}  `);
+      return blue.bold(` ● ${rating}   `);
     case "Medium":
-      return amber.bold(` ◆ ${rating}`);
+      return amber.bold(` ◆ ${rating} `);
     case "Low":
       return red.bold(` ▼ ${rating}    `);
     default:

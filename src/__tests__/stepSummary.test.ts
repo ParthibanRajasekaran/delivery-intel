@@ -42,12 +42,17 @@ describe("svgProgressRing", () => {
     expect(svg).toContain("</svg>");
   });
 
-  it("uses green color for score > 80", () => {
+  it("uses green color for score >= 80", () => {
     const svg = svgProgressRing(90);
     expect(svg).toContain("#39ff14");
   });
 
-  it("uses yellow/amber color for score 50-80", () => {
+  it("uses green color for score exactly 80", () => {
+    const svg = svgProgressRing(80);
+    expect(svg).toContain("#39ff14");
+  });
+
+  it("uses yellow/amber color for score 50-79", () => {
     const svg = svgProgressRing(65);
     expect(svg).toContain("#ffbe0b");
   });

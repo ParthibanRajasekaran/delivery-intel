@@ -193,7 +193,7 @@ async function fetchFileContent(
  * Bucket a list of ISO-date events into per-day counts for the last 7 days.
  * Returns an array of length 7 where index 0 = 6 days ago and index 6 = today.
  */
-function bucketLast7Days(dates: Date[]): number[] {
+export function bucketLast7Days(dates: Date[]): number[] {
   const now = new Date();
   const buckets = new Array<number>(7).fill(0);
   for (const d of dates) {
