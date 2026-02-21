@@ -12,7 +12,7 @@
 // Output: a 0-100 risk score with a qualitative level and breakdown.
 // ============================================================================
 
-import type { DORAMetrics } from "./analyzer";
+import type { DORAMetrics } from "./analyzer.js";
 
 // ---------------------------------------------------------------------------
 // Types

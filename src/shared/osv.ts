@@ -6,7 +6,7 @@
 // (`src/cli/analyzer.ts`).
 // ============================================================================
 
-import type { ParsedDependency } from "./parsers";
+import type { ParsedDependency } from "./parsers.js";
 
 // ---------------------------------------------------------------------------
 // OSV response types

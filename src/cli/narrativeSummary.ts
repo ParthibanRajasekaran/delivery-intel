@@ -13,8 +13,8 @@
 //   DELIVERY_INTEL_LLM_MODEL     — model name (default: gpt-4o-mini)
 // ============================================================================
 
-import type { AnalysisResult } from "./analyzer";
-import type { RiskBreakdown } from "./riskEngine";
+import type { AnalysisResult } from "./analyzer.js";
+import type { RiskBreakdown } from "./riskEngine.js";
 
 // ---------------------------------------------------------------------------
 // Types

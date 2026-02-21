@@ -10,13 +10,13 @@
 //   npx delivery-intel vercel/next.js --json --output report.json
 // ============================================================================
 
-import { analyze } from "./analyzer";
-import type { AnalysisResult } from "./analyzer";
-import { renderCyberReport } from "./cyberRenderer";
-import { withScanSequence } from "./scanSequence";
-import { writeStepSummary } from "./stepSummary";
-import { computeRiskScore, type RiskBreakdown } from "./riskEngine";
-import { generateNarrativeSummary, generateFallbackNarrative } from "./narrativeSummary";
+import { analyze } from "./analyzer.js";
+import type { AnalysisResult } from "./analyzer.js";
+import { renderCyberReport } from "./cyberRenderer.js";
+import { withScanSequence } from "./scanSequence.js";
+import { writeStepSummary } from "./stepSummary.js";
+import { computeRiskScore, type RiskBreakdown } from "./riskEngine.js";
+import { generateNarrativeSummary, generateFallbackNarrative } from "./narrativeSummary.js";
 import chalk from "chalk";
 import * as fs from "node:fs";
 import { execSync } from "node:child_process";

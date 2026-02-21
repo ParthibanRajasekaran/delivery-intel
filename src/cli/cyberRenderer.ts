@@ -5,10 +5,15 @@
 // Palette: Cyan #00f2fe · Deep Blue #4facfe · Neon Green #39ff14 · Red #ff073a
 // ============================================================================
 
-import chalk from "chalk";
+import chalk, { type ChalkInstance } from "chalk";
 import boxen from "boxen";
-import type { AnalysisResult, DORAMetrics, DependencyVulnerability, Suggestion } from "./analyzer";
-import type { RiskBreakdown } from "./riskEngine";
+import type {
+  AnalysisResult,
+  DORAMetrics,
+  DependencyVulnerability,
+  Suggestion,
+} from "./analyzer.js";
+import type { RiskBreakdown } from "./riskEngine.js";
 
 // ---------------------------------------------------------------------------
 // Palette  (Liquid Glass)
@@ -145,7 +150,7 @@ function renderHealthScore(score: number): string {
   const filled = Math.round((score / 100) * width);
   const empty = width - filled;
 
-  let barColor: chalk.Chalk;
+  let barColor: ChalkInstance;
   let label: string;
   if (score >= 80) {
     barColor = green;
@@ -325,7 +330,7 @@ function renderRiskScore(risk: RiskBreakdown): string {
   const filled = Math.round((risk.score / 100) * width);
   const empty = width - filled;
 
-  let barColor: chalk.Chalk;
+  let barColor: ChalkInstance;
   if (risk.level === "low") {
     barColor = green;
   } else if (risk.level === "moderate") {
