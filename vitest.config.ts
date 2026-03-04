@@ -12,7 +12,7 @@ export default defineConfig({
     coverage: {
       provider: "v8",
       reporter: ["text", "text-summary", "lcov", "html"],
-      include: ["src/lib/**", "src/cli/**"],
+      include: ["src/lib/**", "src/cli/**", "src/jittest/**"],
       exclude: [
         "src/__tests__/setup.ts",
         "src/cli/index.ts", // CLI entry point — side-effect-heavy, tested via E2E
@@ -21,6 +21,7 @@ export default defineConfig({
         "src/lib/cache.ts", // Redis integration
         "src/lib/github.ts", // Octokit integration
         "src/lib/vulnerabilities.ts", // OSV.dev integration
+        "src/jittest/cli.ts", // CLI entry point — side-effect-heavy
       ],
       thresholds: {
         statements: 80,
