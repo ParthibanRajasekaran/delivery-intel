@@ -1,0 +1,139 @@
+# ============================================================================
+# JITTest — Just-in-Time Catching Test Generation
+# ============================================================================
+# Implements the JITTest pipeline from arXiv:2601.22832
+# "Just-in-Time Catching Test Generation at Meta"
+#
+# Pipeline:
+#   1. Detect diff between PR branch and base (code-change-aware)
+#   2. Generate catching tests for every changed function
+#   3. Apply rule-based assessors (Stage 1 FP reduction)
+#   4. Report candidate catches as PR comment
+#
+# Triggered on every pull_request (opened, synchronised, reopened) to main.
+# Results are posted as a PR comment for engineer review.
+# ============================================================================
+
+name: JITTest — Catching Test Generation
+
+on:
+  pull_request:
+    branches: [main]
+    types: [opened, synchronize, reopened]
+
+concurrency:
+  group: jittest-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+  pull-requests: write # needed to post the catching-test report comment
+
+jobs:
+  # ── JITTest Pipeline ──────────────────────────────────────────────────────
+  jittest:
+    name: JITTest — Catching Test Report
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout PR branch (full history for diff)
+        uses: actions/checkout@v6
+        with:
+          fetch-depth: 0 # full history required for git diff across branches
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v6
+        with:
+          node-version: 20
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci --legacy-peer-deps
+
+      - name: Run JITTest pipeline
+        id: jittest
+        env:
+          GITHUB_BASE_REF: ${{ github.event.pull_request.base.sha }}
+        run: |
+          # Generate catching tests for the diff between PR head and base.
+          # Output the report as JSON to a file for the next step.
+          npm run jittest:ci -- \
+            --base-ref "$GITHUB_BASE_REF" \
+            --output jittest-report.json \
+            --verbose
+
+      - name: Upload JITTest report artifact
+        if: always()
+        uses: actions/upload-artifact@v6
+        with:
+          name: jittest-report
+          path: jittest-report.json
+          retention-days: 14
+
+      - name: Post catching-test report as PR comment
+        if: always()
+        uses: actions/github-script@v7
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          script: |
+            const fs = require('fs');
+
+            // Read the Markdown summary from the JSON report
+            let summary = '## 🧪 JITTest\n\nReport not generated.';
+            try {
+              const report = JSON.parse(fs.readFileSync('jittest-report.json', 'utf8'));
+              summary = report.markdownSummary ?? summary;
+            } catch (e) {
+              summary = `## 🧪 JITTest\n\n⚠️ Pipeline error: ${e.message}`;
+            }
+
+            // Find an existing JITTest comment to update, or create a new one.
+            const MARKER = '<!-- jittest-report -->';
+            const body = `${MARKER}\n${summary}`;
+
+            const { data: comments } = await github.rest.issues.listComments({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: context.issue.number,
+            });
+
+            const existing = comments.find(c => c.body?.includes(MARKER));
+            if (existing) {
+              await github.rest.issues.updateComment({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                comment_id: existing.id,
+                body,
+              });
+            } else {
+              await github.rest.issues.createComment({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                issue_number: context.issue.number,
+                body,
+              });
+            }
+
+  # ── Run JITTest-generated catching tests ──────────────────────────────────
+  jittest-unit:
+    name: JITTest — Unit Tests (Pipeline Infrastructure)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+
+      - uses: actions/setup-node@v6
+        with:
+          node-version: 20
+          cache: npm
+
+      - run: npm ci --legacy-peer-deps
+
+      - name: Run JITTest infrastructure tests
+        run: npm run test:jittest
+
+      - name: Upload JITTest coverage
+        if: always()
+        uses: actions/upload-artifact@v6
+        with:
+          name: jittest-coverage
+          path: coverage/
+          retention-days: 14

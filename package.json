@@ -56,6 +56,9 @@
     "test": "vitest run",
     "test:watch": "vitest",
     "test:coverage": "vitest run --coverage",
+    "test:jittest": "vitest run src/__tests__/jittest --reporter=verbose",
+    "jittest": "tsx src/jittest/cli.ts",
+    "jittest:ci": "tsx src/jittest/cli.ts",
     "validate": "npm run lint && npm run typecheck && npm run test",
     "prepare": "husky"
   },
