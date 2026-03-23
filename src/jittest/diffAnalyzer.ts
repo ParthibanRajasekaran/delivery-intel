@@ -228,10 +228,10 @@ export function parseDiff(rawDiff: string): DiffAnalysis {
         current.hunks.push(currentHunk);
       }
       currentHunk = {
-        oldStart: parseInt(hunkMatch[1], 10),
-        oldCount: hunkMatch[2] !== undefined ? parseInt(hunkMatch[2], 10) : 1,
-        newStart: parseInt(hunkMatch[3], 10),
-        newCount: hunkMatch[4] !== undefined ? parseInt(hunkMatch[4], 10) : 1,
+        oldStart: Number.parseInt(hunkMatch[1], 10),
+        oldCount: hunkMatch[2] !== undefined ? Number.parseInt(hunkMatch[2], 10) : 1,
+        newStart: Number.parseInt(hunkMatch[3], 10),
+        newCount: hunkMatch[4] !== undefined ? Number.parseInt(hunkMatch[4], 10) : 1,
         functionContext: extractFunctionName(hunkMatch[5] ?? ""),
         addedLines: [],
         removedLines: [],

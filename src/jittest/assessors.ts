@@ -122,7 +122,7 @@ function ruleImportPathNotEmpty(importPath: string): { pass: boolean; reason: st
 function ruleHasNonEmptyInvocation(testCode: string): { pass: boolean; reason: string } {
   // Strip vitest helpers (describe/it/expect/test) before checking for function
   // calls with arguments — otherwise describe("...") always satisfies the rule.
-  const stripped = testCode.replace(
+  const stripped = testCode.replaceAll(
     /\b(describe|it|test|expect|import|from|require)\s*\(/g,
     "__VITEST__(",
   );

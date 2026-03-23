@@ -179,7 +179,7 @@ function buildImportPath(filePath: string): string {
 
 /** Stable ID generator: deterministic from file + function + category + hunk position. */
 function makeTestId(file: string, fn: string, category: string, hunkStart: number): string {
-  const safe = (s: string) => s.replace(/[^a-zA-Z0-9]/g, "_").slice(0, 30);
+  const safe = (s: string) => s.replaceAll(/[^a-zA-Z0-9]/g, "_").slice(0, 30);
   return `jit_${safe(file)}_${safe(fn)}_${safe(category)}_L${hunkStart}`;
 }
 

@@ -25,15 +25,16 @@ concurrency:
   group: jittest-${{ github.ref }}
   cancel-in-progress: true
 
-permissions:
-  contents: read
-  pull-requests: write # needed to post the catching-test report comment
+permissions: {} # no workflow-level permissions — scoped per job below
 
 jobs:
   # ── JITTest Pipeline ──────────────────────────────────────────────────────
   jittest:
     name: JITTest — Catching Test Report
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      pull-requests: write # needed to post the catching-test report comment
     steps:
       - name: Checkout PR branch (full history for diff)
         uses: actions/checkout@v6
@@ -117,6 +118,8 @@ jobs:
   jittest-unit:
     name: JITTest — Unit Tests (Pipeline Infrastructure)
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
     steps:
       - uses: actions/checkout@v6
 
