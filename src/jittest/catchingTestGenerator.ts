@@ -87,7 +87,7 @@ const ARITHMETIC_PATTERNS = [/[+\-*/]\s*\d+/, /\+\+|--/, /\*=|\/=|\+=|-=/];
 const NULL_CHECK_PATTERNS = [
   /\bnull\b|\bundefined\b/,
   /\?\?|!\./,
-  /typeof .+ ===? ["']undefined["']/,
+  /typeof [^=]+ ===? ["']undefined["']/,
   /=== null|!== null|== null|!= null/,
 ];
 
@@ -104,7 +104,7 @@ const RETURN_VALUE_PATTERNS = [/^\s*return\s/m];
 /** Patterns for control flow changes. */
 const CONTROL_FLOW_PATTERNS = [
   /^\s*(if|else|switch|case|break|continue|for|while)\b/m,
-  /\?\s*.+\s*:/, // ternary
+  /\?\s*[^:]+:/, // ternary
 ];
 
 /** Patterns for string formatting changes. */

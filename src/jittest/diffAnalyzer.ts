@@ -77,13 +77,13 @@ export interface DiffAnalysis {
 // ---------------------------------------------------------------------------
 
 // Matches:  diff --git a/some/path b/some/path
-const RE_DIFF_HEADER = /^diff --git a\/(.+?) b\/(.+)$/;
+const RE_DIFF_HEADER = /^diff --git a\/([^ ]+) b\/(.+)$/;
 
 // Matches:  new file mode 100644  |  deleted file mode 100644  |  rename from/to
 const RE_NEW_FILE = /^new file mode/;
 const RE_DELETED_FILE = /^deleted file mode/;
-const RE_RENAME_FROM = /^rename from (.+)$/;
-const RE_RENAME_TO = /^rename to (.+)$/;
+const RE_RENAME_FROM = /^rename from (.+)$/m;
+const RE_RENAME_TO = /^rename to (.+)$/m;
 
 // Matches:  --- a/path  or  --- /dev/null
 const RE_OLD_PATH = /^--- (?:a\/)?(.+)$/;
@@ -100,7 +100,7 @@ const RE_HUNK_HEADER = /^@@ -(\d+)(?:,(\d+))? \+(\d+)(?:,(\d+))? @@\s*(.*)$/;
 //   "classifyRiskLevel(score: number)"
 //   "  computeRiskScore("
 const RE_FUNCTION_NAME =
-  /(?:export\s+(?:default\s+)?(?:async\s+)?(?:function\s+|class\s+)|(?:async\s+)?function\s+|(?:const|let|var)\s+)(\w+)/;
+  /(?:export +(?:default +)?(?:async +)?(?:function +|class +)|(?:async +)?function +|(?:const|let|var) +)(\w+)/;
 
 // ---------------------------------------------------------------------------
 // Internal helpers
