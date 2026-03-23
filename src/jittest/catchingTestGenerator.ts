@@ -36,7 +36,7 @@ export type ChangeCategory =
 
 /** A single catching test case ready for execution via Vitest. */
 export interface CatchingTest {
-  /** Stable UUID-style ID derived from file + function + category. */
+  /** Stable ID derived from file path + function name + change category + hunk position. */
   id: string;
   /** Repo-relative path of the source file being tested. */
   targetFile: string;
@@ -76,7 +76,7 @@ export interface GenerationResult {
 /** Patterns that suggest a numeric boundary / threshold was changed. */
 const BOUNDARY_PATTERNS = [
   /[><=!]=?\s*\d+/, // comparison with literal
-  /\bthreashold\b|\blimit\b|\bmax\b|\bmin\b/i,
+  /\bthreshold\b|\bthreashold\b|\blimit\b|\bmax\b|\bmin\b/i,
   /Math\.min|Math\.max|Math\.clamp/,
 ];
 
@@ -99,11 +99,11 @@ const TYPE_COERCION_PATTERNS = [
 ];
 
 /** Patterns for return value changes. */
-const RETURN_VALUE_PATTERNS = [/^\s*return\s/];
+const RETURN_VALUE_PATTERNS = [/^\s*return\s/m];
 
 /** Patterns for control flow changes. */
 const CONTROL_FLOW_PATTERNS = [
-  /^\s*(if|else|switch|case|break|continue|for|while)\b/,
+  /^\s*(if|else|switch|case|break|continue|for|while)\b/m,
   /\?\s*.+\s*:/, // ternary
 ];
 
@@ -177,10 +177,10 @@ function buildImportPath(filePath: string): string {
   return filePath.replace(/^src\//, "@/").replace(/\.(ts|tsx|js|jsx)$/, "");
 }
 
-/** Stable ID generator: deterministic hash-like string from components. */
-function makeTestId(file: string, fn: string, category: string, index: number): string {
-  const safe = (s: string) => s.replace(/[^a-zA-Z0-9]/g, "_").slice(0, 20);
-  return `jit_${safe(fn)}_${safe(category)}_${index}`;
+/** Stable ID generator: deterministic from file + function + category + hunk position. */
+function makeTestId(file: string, fn: string, category: string, hunkStart: number): string {
+  const safe = (s: string) => s.replace(/[^a-zA-Z0-9]/g, "_").slice(0, 30);
+  return `jit_${safe(file)}_${safe(fn)}_${safe(category)}_L${hunkStart}`;
 }
 
 interface TemplateContext {
@@ -447,7 +447,7 @@ export function generateCatchingTests(changedFiles: ChangedFile[]): GenerationRe
       };
 
       tests.push({
-        id: makeTestId(file.path, functionName, category, testIndex),
+        id: makeTestId(file.path, functionName, category, hunk.oldStart),
         targetFile: file.path,
         targetFunction: functionName,
         importPath,

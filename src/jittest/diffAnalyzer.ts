@@ -305,7 +305,10 @@ export function filterSourceFiles(analysis: DiffAnalysis): ChangedFile[] {
     if (/\.(test|spec)\.(ts|tsx|js|jsx)$/.test(f.path)) {
       return false;
     }
-    if (/\/(node_modules|dist|coverage|\.next)\//.test(f.path)) {
+    if (/(^|\/)(__tests__|__mocks__)\//.test(f.path)) {
+      return false;
+    }
+    if (/(^|\/)(node_modules|dist|coverage|\.next)(\/|$)/.test(f.path)) {
       return false;
     }
     return true;

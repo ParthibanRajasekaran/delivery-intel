@@ -6,8 +6,8 @@
 //
 //   Stage 1 — Rule-based assessors (fast, cheap, deterministic)
 //     Applied first. Discard catching tests that clearly cannot surface a real
-//     bug (e.g. no assertions, trivial function target, or import target does
-//     not exist in the specified file).
+//     bug (e.g. no assertions, missing describe block, or trivial function
+//     target).
 //
 //   Stage 2 — LLM-based assessor (pluggable interface)
 //     Applied to the candidates that survive Stage 1. The stub here is
@@ -120,8 +120,13 @@ function ruleImportPathNotEmpty(importPath: string): { pass: boolean; reason: st
  * We check by counting invocations with actual content inside the parens.
  */
 function ruleHasNonEmptyInvocation(testCode: string): { pass: boolean; reason: string } {
-  // Matches e.g. someFunc(42), fn("hello"), fn(null)  — NOT fn()
-  const hasArgs = /\w+\s*\(\s*(?!\s*\))/.test(testCode);
+  // Strip vitest helpers (describe/it/expect/test) before checking for function
+  // calls with arguments — otherwise describe("...") always satisfies the rule.
+  const stripped = testCode.replace(
+    /\b(describe|it|test|expect|import|from|require)\s*\(/g,
+    "__VITEST__(",
+  );
+  const hasArgs = /\w+\s*\(\s*(?!\s*\))/.test(stripped);
   return {
     pass: hasArgs,
     reason: hasArgs

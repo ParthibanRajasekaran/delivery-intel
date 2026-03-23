@@ -12,7 +12,7 @@
 // Reference: Meta JITTest (arXiv:2601.22832)
 // ============================================================================
 
-import { execSync } from "node:child_process";
+import { execFileSync } from "node:child_process";
 import { parseDiff, filterSourceFiles } from "./diffAnalyzer.js";
 import { generateCatchingTests } from "./catchingTestGenerator.js";
 import {
@@ -88,13 +88,24 @@ export interface JITTestReport {
  * `git diff HEAD` (includes both staged and unstaged changes).
  */
 export function getDiffFromGit(baseRef?: string, cwd: string = process.cwd()): string {
-  const cmd = baseRef ? `git diff ${baseRef}..HEAD --unified=5` : "git diff HEAD --unified=5";
+  // Validate baseRef to prevent shell injection — only allow safe git ref characters
+  if (baseRef && !/^[a-zA-Z0-9_.\-/~^]+$/.test(baseRef)) {
+    throw new Error(
+      `Invalid git ref: "${baseRef}". Only alphanumeric, dots, dashes, slashes, tildes, and carets are allowed.`,
+    );
+  }
+  const args = baseRef
+    ? ["diff", `${baseRef}..HEAD`, "--unified=5"]
+    : ["diff", "HEAD", "--unified=5"];
   try {
-    return execSync(cmd, { cwd, encoding: "utf8" });
+    return execFileSync("git", args, { cwd, encoding: "utf8" });
   } catch (err) {
-    throw new Error(`Failed to obtain git diff (command: "${cmd}"): ${(err as Error).message}`, {
-      cause: err,
-    });
+    throw new Error(
+      `Failed to obtain git diff (command: "git ${args.join(" ")}"): ${(err as Error).message}`,
+      {
+        cause: err,
+      },
+    );
   }
 }
 

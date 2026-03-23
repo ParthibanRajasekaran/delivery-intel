@@ -14,7 +14,7 @@
 // ============================================================================
 
 import { writeFileSync } from "node:fs";
-import { runJITTestPipeline } from "../jittest/runner.js";
+import { runJITTestPipeline } from "./runner.js";
 
 // ---------------------------------------------------------------------------
 // Argument parsing (no external deps)
