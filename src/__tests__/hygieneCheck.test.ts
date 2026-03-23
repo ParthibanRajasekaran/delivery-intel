@@ -16,12 +16,12 @@ function mockOctokit(overrides: Record<string, unknown> = {}) {
   return {
     repos: {
       getContent: vi.fn(),
-      ...((overrides.repos as Record<string, unknown>) ?? {}),
+      ...(overrides.repos as Record<string, unknown>),
     },
     pulls: {
       list: vi.fn().mockResolvedValue({ data: [] }),
       listReviews: vi.fn().mockResolvedValue({ data: [] }),
-      ...((overrides.pulls as Record<string, unknown>) ?? {}),
+      ...(overrides.pulls as Record<string, unknown>),
     },
   } as any; // eslint-disable-line @typescript-eslint/no-explicit-any
 }

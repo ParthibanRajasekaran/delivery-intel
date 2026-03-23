@@ -180,8 +180,7 @@ export default function HomePage() {
           >
             {loading ? (
               <span className="flex items-center gap-2">
-                <span className="spinner" />
-                Analyzing…
+                <span className="spinner" /> Analyzing…
               </span>
             ) : (
               "Analyze"

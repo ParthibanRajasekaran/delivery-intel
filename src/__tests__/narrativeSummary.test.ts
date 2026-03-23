@@ -59,7 +59,7 @@ function makeRisk(): RiskBreakdown {
   return {
     cycleTimeDelta: 0.0172,
     failureRateDelta: 0.0316,
-    sentimentMultiplier: 1.0,
+    sentimentMultiplier: 1,
     score: 22,
     level: "low",
     summary: "Delivery risk is low (22/100).",
