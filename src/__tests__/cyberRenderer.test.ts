@@ -3,11 +3,11 @@ import { sparkline, renderCyberReport } from "../cli/cyberRenderer";
 import type { AnalysisResult } from "../cli/analyzer";
 
 // eslint-disable-next-line no-control-regex
-const ANSI_RE = new RegExp("\x1b\\[[0-9;]*m", "g");
+const ANSI_RE = /\x1b\[[0-9;]*m/g;
 
 /** Strip ANSI escape codes to get raw visible text */
 function stripAnsi(s: string): string {
-  return s.replace(ANSI_RE, "");
+  return s.replaceAll(ANSI_RE, "");
 }
 
 /** Build a minimal AnalysisResult fixture */
