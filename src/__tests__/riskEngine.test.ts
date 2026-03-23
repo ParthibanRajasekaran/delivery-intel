@@ -88,7 +88,7 @@ describe("computeRiskScore", () => {
     expect(result.level).toBe("low");
     expect(result.cycleTimeDelta).toBe(0);
     expect(result.failureRateDelta).toBe(0);
-    expect(result.sentimentMultiplier).toBe(1.0);
+    expect(result.sentimentMultiplier).toBe(1);
   });
 
   it("returns high risk for degraded metrics", () => {
@@ -109,13 +109,13 @@ describe("computeRiskScore", () => {
     const sentimentResult = computeRiskScore(withSentiment);
 
     expect(sentimentResult.score).toBeGreaterThan(baseResult.score);
-    expect(sentimentResult.sentimentMultiplier).toBeGreaterThan(1.0);
+    expect(sentimentResult.sentimentMultiplier).toBeGreaterThan(1);
   });
 
   it("caps score at 100", () => {
     const input: RiskInput = {
       doraMetrics: makeDoraMetrics(720, 100),
-      sentimentNegativeRatio: 1.0,
+      sentimentNegativeRatio: 1,
     };
     const result = computeRiskScore(input);
     expect(result.score).toBeLessThanOrEqual(100);
@@ -135,7 +135,7 @@ describe("computeRiskScore", () => {
       sentimentNegativeRatio: 0,
     };
     const result = computeRiskScore(input);
-    expect(result.sentimentMultiplier).toBe(1.0);
+    expect(result.sentimentMultiplier).toBe(1);
   });
 
   it("clamps sentimentNegativeRatio to [0, 1]", () => {
@@ -144,7 +144,7 @@ describe("computeRiskScore", () => {
       sentimentNegativeRatio: 2.5,
     };
     const result = computeRiskScore(overOne);
-    // Clamped to 1.0 → multiplier = 1.0 + 1.0 * 0.5 = 1.5
+    // Clamped to 1 → multiplier = 1 + 1 * 0.5 = 1.5
     expect(result.sentimentMultiplier).toBe(1.5);
 
     const negative: RiskInput = {
@@ -152,8 +152,8 @@ describe("computeRiskScore", () => {
       sentimentNegativeRatio: -0.5,
     };
     const negResult = computeRiskScore(negative);
-    // Clamped to 0 → multiplier stays 1.0
-    expect(negResult.sentimentMultiplier).toBe(1.0);
+    // Clamped to 0 → multiplier stays 1
+    expect(negResult.sentimentMultiplier).toBe(1);
   });
 
   it("produces consistent deltas between 0 and 1", () => {
