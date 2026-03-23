@@ -109,8 +109,10 @@ function summarize(
   const parts: string[] = [];
 
   if (level === "low") {
-    parts.push(`Delivery risk is low (${score}/100).`);
-    parts.push("Team velocity and pipeline stability are within healthy thresholds.");
+    parts.push(
+      `Delivery risk is low (${score}/100).`,
+      "Team velocity and pipeline stability are within healthy thresholds.",
+    );
   } else if (level === "moderate") {
     parts.push(`Delivery risk is moderate (${score}/100).`);
     if (breakdown.cycleTimeDelta > 0.3) {
@@ -128,11 +130,13 @@ function summarize(
       parts.push("Pipeline failures are impacting velocity.");
     }
   } else {
-    parts.push(`Delivery risk is critical (${score}/100).`);
-    parts.push("Immediate intervention recommended — team may be approaching burnout.");
+    parts.push(
+      `Delivery risk is critical (${score}/100).`,
+      "Immediate intervention recommended \u2014 team may be approaching burnout.",
+    );
   }
 
-  if (breakdown.sentimentMultiplier > 1.0) {
+  if (breakdown.sentimentMultiplier > 1) {
     parts.push("Negative team sentiment is amplifying the risk signal.");
   }
 
@@ -163,7 +167,7 @@ export function computeRiskScore(input: RiskInput): RiskBreakdown {
 
   // --- Sentiment multiplier ---
   // If negative sentiment is provided, clamp to [0, 1] and scale: 1.0 (neutral) → 1.5 (fully negative)
-  let sentimentMultiplier = 1.0;
+  let sentimentMultiplier = 1;
   if (sentimentNegativeRatio !== undefined) {
     const clampedRatio = Math.min(1, Math.max(0, sentimentNegativeRatio));
     if (clampedRatio > 0) {

@@ -89,17 +89,17 @@ export function buildUserPrompt(input: NarrativeInput): string {
   const parts: string[] = [];
   const { analysis, risk } = input;
 
-  parts.push("## Repository");
-  parts.push(`${analysis.repo.owner}/${analysis.repo.repo}`);
-  parts.push("");
-
-  parts.push("## DORA Metrics");
-  parts.push(JSON.stringify(analysis.doraMetrics, null, 2));
-  parts.push("");
-
-  parts.push("## Overall Score");
-  parts.push(`${analysis.overallScore}/100`);
-  parts.push("");
+  parts.push(
+    "## Repository",
+    `${analysis.repo.owner}/${analysis.repo.repo}`,
+    "",
+    "## DORA Metrics",
+    JSON.stringify(analysis.doraMetrics, null, 2),
+    "",
+    "## Overall Score",
+    `${analysis.overallScore}/100`,
+    "",
+  );
 
   if (analysis.vulnerabilities.length > 0) {
     parts.push("## Vulnerabilities");
@@ -130,8 +130,10 @@ export function buildUserPrompt(input: NarrativeInput): string {
     parts.push("");
   }
 
-  parts.push("## Daily Deployments (last 7 days, oldest→newest)");
-  parts.push(analysis.dailyDeployments.join(", "));
+  parts.push(
+    "## Daily Deployments (last 7 days, oldest\u2192newest)",
+    analysis.dailyDeployments.join(", "),
+  );
 
   return parts.join("\n");
 }

@@ -207,14 +207,16 @@ export function renderHygieneMarkdown(report: HygieneReport): string {
   const lines: string[] = [];
   const icon = statusIcon(report.overallStatus);
 
-  lines.push(`## ${icon} Engineering Hygiene Report`);
-  lines.push("");
-  lines.push(`**Repository:** ${report.repo}`);
-  lines.push(`**Scanned:** ${report.timestamp}`);
-  lines.push(`**Overall:** ${report.overallStatus.toUpperCase()}`);
-  lines.push("");
-  lines.push("| Check | Status | Detail |");
-  lines.push("|-------|--------|--------|");
+  lines.push(
+    `## ${icon} Engineering Hygiene Report`,
+    "",
+    `**Repository:** ${report.repo}`,
+    `**Scanned:** ${report.timestamp}`,
+    `**Overall:** ${report.overallStatus.toUpperCase()}`,
+    "",
+    "| Check | Status | Detail |",
+    "|-------|--------|--------|",
+  );
 
   for (const check of report.checks) {
     lines.push(

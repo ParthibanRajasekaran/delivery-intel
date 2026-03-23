@@ -27,7 +27,7 @@ import {
 // ---------------------------------------------------------------------------
 
 function getToken(): string | undefined {
-  return process.env.GITHUB_TOKEN || undefined;
+  return process.env.GITHUB_TOKEN ?? undefined;
 }
 
 function createOctokit(): Octokit {

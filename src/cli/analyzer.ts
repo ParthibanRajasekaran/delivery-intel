@@ -27,8 +27,7 @@ import {
 // Types (self-contained, no @/ alias)
 // ---------------------------------------------------------------------------
 
-export type { RepoIdentifier };
-export { parseRepoSlug };
+export { type RepoIdentifier, parseRepoSlug } from "../shared/github.js";
 
 export interface DORAMetrics {
   deploymentFrequency: {

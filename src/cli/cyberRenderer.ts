@@ -126,9 +126,9 @@ function severityTag(sev: string): string {
 
 function renderBanner(result: AnalysisResult): string {
   const lines: string[] = [];
-  lines.push("");
-  lines.push(cyan.bold("  ┌─────────────────────────────────────────────────────────┐"));
   lines.push(
+    "",
+    cyan.bold("  ┌─────────────────────────────────────────────────────────┐"),
     cyan.bold("  │") +
       "  📡 " +
       bold("Delivery Intel") +
@@ -136,12 +136,12 @@ function renderBanner(result: AnalysisResult): string {
       dim("— Cyber-Diagnostic Report 2026") +
       "   " +
       cyan.bold("│"),
+    cyan.bold("  └─────────────────────────────────────────────────────────┘"),
+    "",
+    "  " + dim("Repository  ") + bold(`${result.repo.owner}/${result.repo.repo}`),
+    "  " + dim("Scanned     ") + dim(result.fetchedAt),
+    "",
   );
-  lines.push(cyan.bold("  └─────────────────────────────────────────────────────────┘"));
-  lines.push("");
-  lines.push("  " + dim("Repository  ") + bold(`${result.repo.owner}/${result.repo.repo}`));
-  lines.push("  " + dim("Scanned     ") + dim(result.fetchedAt));
-  lines.push("");
   return lines.join("\n");
 }
 
@@ -181,16 +181,15 @@ function renderDORA(dora: DORAMetrics, daily: number[]): string {
   const lines: string[] = [];
   const sep = dim("─".repeat(56));
 
-  lines.push("");
-  lines.push("  " + cyan.bold("◈  DORA Metrics"));
-  lines.push("  " + sep);
-  lines.push("");
-
   // Deploy frequency + sparkline
   const df = dora.deploymentFrequency;
-  lines.push("  " + bold("Deploy Frequency") + "    " + ratingBadge(df.rating));
-  lines.push("  " + dim("How often code ships to production"));
   lines.push(
+    "",
+    "  " + cyan.bold("◈  DORA Metrics"),
+    "  " + sep,
+    "",
+    "  " + bold("Deploy Frequency") + "    " + ratingBadge(df.rating),
+    "  " + dim("How often code ships to production"),
     "  " +
       bold(`${df.deploymentsPerWeek}`) +
       dim(" deployments/week") +
@@ -198,36 +197,34 @@ function renderDORA(dora: DORAMetrics, daily: number[]): string {
       dim("(") +
       dim(df.source === "merged_prs_fallback" ? "merged PRs" : "Deployments API") +
       dim(")"),
-  );
-  lines.push(
     "  " + dim("Last 7 days  ") + sparkline(daily) + "  " + dim(daily.map(String).join(" ")),
+    "",
   );
-  lines.push("");
 
   // Lead time
   const lt = dora.leadTimeForChanges;
-  lines.push("  " + bold("Lead Time") + "             " + ratingBadge(lt.rating));
-  lines.push("  " + dim("PR creation → merge (branch active duration)"));
   lines.push(
+    "  " + bold("Lead Time") + "             " + ratingBadge(lt.rating),
+    "  " + dim("PR creation → merge (branch active duration)"),
     "  " +
       bold(`${lt.medianHours}`) +
       dim(" hours median") +
       "  " +
       dim(`(${(lt.medianHours / 24).toFixed(1)} days)`),
+    "",
   );
-  lines.push("");
 
   // Change failure rate
   const cfr = dora.changeFailureRate;
-  lines.push("  " + bold("Change Failure Rate") + "   " + ratingBadge(cfr.rating));
-  lines.push("  " + dim("Percentage of deployment pipeline runs that failed"));
   lines.push(
+    "  " + bold("Change Failure Rate") + "   " + ratingBadge(cfr.rating),
+    "  " + dim("Percentage of deployment pipeline runs that failed"),
     "  " +
       bold(`${cfr.percentage}%`) +
       "  " +
       dim(`(${cfr.failedRuns} failed / ${cfr.totalRuns} total runs)`),
+    "",
   );
-  lines.push("");
 
   return lines.join("\n");
 }
@@ -236,9 +233,7 @@ function renderVulnerabilities(vulns: DependencyVulnerability[]): string {
   const lines: string[] = [];
   const sep = dim("─".repeat(56));
 
-  lines.push("  " + cyan.bold("◈  Vulnerability Scan") + dim("  (OSV.dev)"));
-  lines.push("  " + sep);
-  lines.push("");
+  lines.push("  " + cyan.bold("◈  Vulnerability Scan") + dim("  (OSV.dev)"), "  " + sep, "");
 
   if (vulns.length === 0) {
     lines.push("  " + green("✓ No known vulnerabilities found"));
@@ -250,8 +245,8 @@ function renderVulnerabilities(vulns: DependencyVulnerability[]): string {
     "  " +
       red.bold(`${vulns.length}`) +
       red(` vulnerabilit${vulns.length === 1 ? "y" : "ies"} found`),
+    "",
   );
-  lines.push("");
 
   // Group & render by severity
   const grouped: Record<string, DependencyVulnerability[]> = {};
@@ -296,9 +291,7 @@ function renderSuggestions(suggestions: Suggestion[]): string {
   const lines: string[] = [];
   const sep = dim("─".repeat(56));
 
-  lines.push("  " + cyan.bold("◈  Suggestions"));
-  lines.push("  " + sep);
-  lines.push("");
+  lines.push("  " + cyan.bold("◈  Suggestions"), "  " + sep, "");
 
   for (const s of suggestions) {
     const icon = s.category === "security" ? "🔒" : s.category === "reliability" ? "🛡️ " : "⚡";
@@ -321,9 +314,7 @@ function renderRiskScore(risk: RiskBreakdown): string {
   const lines: string[] = [];
   const sep = dim("─".repeat(56));
 
-  lines.push("  " + cyan.bold("◈  Burnout Risk Score"));
-  lines.push("  " + sep);
-  lines.push("");
+  lines.push("  " + cyan.bold("◈  Burnout Risk Score"), "  " + sep, "");
 
   // Risk gauge bar
   const width = 30;
@@ -350,18 +341,18 @@ function renderRiskScore(risk: RiskBreakdown): string {
     "  " +
     barColor.bold(risk.level.toUpperCase());
 
-  lines.push("  " + bar);
-  lines.push("");
-  lines.push("  " + dim("Δ Cycle Time    ") + bold(`${(risk.cycleTimeDelta * 100).toFixed(1)}%`));
-  lines.push("  " + dim("Δ Failure Rate  ") + bold(`${(risk.failureRateDelta * 100).toFixed(1)}%`));
-  if (risk.sentimentMultiplier > 1.0) {
+  lines.push(
+    "  " + bar,
+    "",
+    "  " + dim("Δ Cycle Time    ") + bold(`${(risk.cycleTimeDelta * 100).toFixed(1)}%`),
+    "  " + dim("Δ Failure Rate  ") + bold(`${(risk.failureRateDelta * 100).toFixed(1)}%`),
+  );
+  if (risk.sentimentMultiplier > 1) {
     lines.push(
       "  " + dim("Sentiment       ") + amber.bold(`×${risk.sentimentMultiplier.toFixed(2)}`),
     );
   }
-  lines.push("");
-  lines.push("  " + dim(risk.summary));
-  lines.push("");
+  lines.push("", "  " + dim(risk.summary), "");
 
   return lines.join("\n");
 }
@@ -374,9 +365,7 @@ function renderNarrative(narrative: string, model: string): string {
   const lines: string[] = [];
   const sep = dim("─".repeat(56));
 
-  lines.push("  " + cyan.bold("◈  Executive Narrative") + "  " + dim(`(${model})`));
-  lines.push("  " + sep);
-  lines.push("");
+  lines.push("  " + cyan.bold("◈  Executive Narrative") + "  " + dim(`(${model})`), "  " + sep, "");
 
   // Format narrative paragraphs, preserving existing line breaks
   for (const paragraph of narrative.split("\n\n")) {

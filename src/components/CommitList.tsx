@@ -31,7 +31,7 @@ const commitItem = {
   show: { opacity: 1, x: 0 },
 };
 
-export function CommitList({ commits }: CommitListProps) {
+export function CommitList({ commits }: Readonly<CommitListProps>) {
   return (
     <motion.div
       className="rounded-xl p-6 glass-card"

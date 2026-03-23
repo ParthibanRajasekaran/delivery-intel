@@ -33,7 +33,7 @@ const suggestionItem = {
   show: { opacity: 1, x: 0 },
 };
 
-export function SuggestionsPanel({ suggestions }: SuggestionsPanelProps) {
+export function SuggestionsPanel({ suggestions }: Readonly<SuggestionsPanelProps>) {
   return (
     <motion.div
       className="rounded-xl p-6 glass-card"

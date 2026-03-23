@@ -37,7 +37,7 @@ function resolveTokenFromGHCli(): string | null {
       timeout: 5000,
       stdio: ["pipe", "pipe", "pipe"],
     }).trim();
-    return token || null;
+    return token ?? null;
   } catch {
     return null;
   }
@@ -158,7 +158,7 @@ async function main(): Promise<void> {
       outputFile = args[i];
     } else if (args[i] === "--token" && i + 1 < args.length) {
       i++;
-      token = args[i] || null;
+      token = args[i] ?? null;
     } else if (!args[i].startsWith("--")) {
       repo = args[i];
     }
@@ -202,7 +202,7 @@ async function main(): Promise<void> {
   try {
     // Run analysis — with or without spinner
     let result: AnalysisResult;
-    const analysisTask = analyze(repo, token || undefined);
+    const analysisTask = analyze(repo, token ?? undefined);
 
     if (!jsonMode && !noSpinner) {
       result = await withScanSequence(analysisTask);

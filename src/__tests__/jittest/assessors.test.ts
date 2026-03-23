@@ -279,9 +279,9 @@ describe("aggregation utilities", () => {
     expect(fpReductionRate([])).toBe(0);
   });
 
-  it("fpReductionRate returns 1.0 when all are FPs", () => {
+  it("fpReductionRate returns 1 when all are FPs", () => {
     const allFPs = [makeAssessed("false_positive"), makeAssessed("false_positive")];
-    expect(fpReductionRate(allFPs)).toBe(1.0);
+    expect(fpReductionRate(allFPs)).toBe(1);
   });
 
   it("fpReductionRate returns 0 when no FPs", () => {

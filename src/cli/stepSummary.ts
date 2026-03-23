@@ -91,16 +91,12 @@ const BENCHMARKS: Record<string, string> = {
 
 function doraTable(dora: DORAMetrics, daily: number[]): string {
   const lines: string[] = [];
-  lines.push("### 📊 DORA Metrics\n");
-  lines.push("| Metric | Value | Rating | Benchmark |");
-  lines.push("|--------|-------|--------|-----------|");
   lines.push(
+    "### 📊 DORA Metrics\n",
+    "| Metric | Value | Rating | Benchmark |",
+    "|--------|-------|--------|-----------|",
     `| Deploy Frequency | ${dora.deploymentFrequency.deploymentsPerWeek}/wk ${sparklineMarkdown(daily)} | ${ratingEmoji(dora.deploymentFrequency.rating)} ${dora.deploymentFrequency.rating} | ${BENCHMARKS["Deploy Frequency"]} |`,
-  );
-  lines.push(
     `| Lead Time | ${dora.leadTimeForChanges.medianHours}h median | ${ratingEmoji(dora.leadTimeForChanges.rating)} ${dora.leadTimeForChanges.rating} | ${BENCHMARKS["Lead Time"]} |`,
-  );
-  lines.push(
     `| Change Failure Rate | ${dora.changeFailureRate.percentage}% (${dora.changeFailureRate.failedRuns}/${dora.changeFailureRate.totalRuns}) | ${ratingEmoji(dora.changeFailureRate.rating)} ${dora.changeFailureRate.rating} | ${BENCHMARKS["Change Failure Rate"]} |`,
   );
   return lines.join("\n");
@@ -111,9 +107,11 @@ function vulnTable(vulns: DependencyVulnerability[]): string {
     return "### 🔒 Vulnerabilities\n\n✅ No known vulnerabilities found.\n";
   }
   const lines: string[] = [];
-  lines.push(`### 🔒 Vulnerabilities (${vulns.length})\n`);
-  lines.push("| Severity | Package | ID | Fix |");
-  lines.push("|----------|---------|-----|-----|");
+  lines.push(
+    `### 🔒 Vulnerabilities (${vulns.length})\n`,
+    "| Severity | Package | ID | Fix |",
+    "|----------|---------|-----|-----|",
+  );
   for (const v of vulns.slice(0, 15)) {
     const fixCell = v.fixedVersion ? `\`${v.fixedVersion}\`` : "—";
     lines.push(

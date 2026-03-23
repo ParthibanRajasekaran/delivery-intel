@@ -44,7 +44,7 @@ export async function scanDependencies(
           vulnId: vuln.id,
           summary: vuln.summary || "No description available.",
           severity: classifySeverity(vuln.severity),
-          aliases: vuln.aliases || [],
+          aliases: vuln.aliases ?? [],
           fixedVersion: extractFixedVersion(vuln.affected, dep),
         });
       }

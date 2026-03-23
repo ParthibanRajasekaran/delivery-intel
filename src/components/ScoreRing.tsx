@@ -7,7 +7,7 @@ interface ScoreRingProps {
   score: number;
 }
 
-export function ScoreRing({ score }: ScoreRingProps) {
+export function ScoreRing({ score }: Readonly<ScoreRingProps>) {
   const radius = 54;
   const circumference = 2 * Math.PI * radius;
   const offset = circumference - (score / 100) * circumference;

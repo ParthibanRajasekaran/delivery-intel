@@ -17,7 +17,7 @@ interface FailureRateChartProps {
   metrics: DORAMetrics;
 }
 
-export function FailureRateChart({ metrics }: FailureRateChartProps) {
+export function FailureRateChart({ metrics }: Readonly<FailureRateChartProps>) {
   const rate = metrics.changeFailureRate.percentage;
   const successRate = +(100 - rate).toFixed(1);
 
