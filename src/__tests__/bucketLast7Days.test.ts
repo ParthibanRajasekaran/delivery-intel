@@ -7,16 +7,16 @@ import { bucketLast7Days } from "../cli/analyzer";
  */
 const NOW = new Date("2026-02-20T12:00:00Z");
 
+function withFakeTime(fn: () => void) {
+  vi.useFakeTimers();
+  vi.setSystemTime(NOW);
+  fn();
+}
+
 describe("bucketLast7Days", () => {
   afterEach(() => {
     vi.useRealTimers();
   });
-
-  function withFakeTime(fn: () => void) {
-    vi.useFakeTimers();
-    vi.setSystemTime(NOW);
-    fn();
-  }
 
   it("returns 7-element array of zeros for empty input", () => {
     withFakeTime(() => {
