@@ -73,10 +73,10 @@ export default function HomePage() {
         body: JSON.stringify({ repo: repoInput.trim() }),
       });
       const data = await res.json();
-      if (!res.ok) {
-        setError(data.error || `Request failed (${res.status})`);
-      } else {
+      if (res.ok) {
         setAnalysis(data as RepoAnalysis);
+      } else {
+        setError(data.error || `Request failed (${res.status})`);
       }
     } catch (err) {
       setError(err instanceof Error ? err.message : "Network error. Check your connection.");

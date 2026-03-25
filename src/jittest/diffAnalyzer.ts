@@ -99,8 +99,9 @@ const RE_HUNK_HEADER = /^@@ -(\d+)(?:,(\d+))? \+(\d+)(?:,(\d+))? @@\s*(.*)$/;
 //   "export function normalizeDelta(actual: number, ..."
 //   "classifyRiskLevel(score: number)"
 //   "  computeRiskScore("
-const RE_FUNCTION_NAME =
-  /(?:export +(?:default +)?(?:async +)?(?:function +|class +)|(?:async +)?function +|(?:const|let|var) +)(\w+)/;
+const RE_FUNC_KEYWORD = /\bfunction\s+(\w+)/;
+const RE_CLASS_KEYWORD = /\bclass\s+(\w+)/;
+const RE_DECL_KEYWORD = /\b(?:const|let|var)\s+(\w+)/;
 
 // ---------------------------------------------------------------------------
 // Internal helpers
@@ -113,13 +114,21 @@ function extractFunctionName(contextLabel: string): string {
     return "";
   }
 
-  const match = trimmed.match(RE_FUNCTION_NAME);
-  if (match) {
-    return match[1];
+  const fnMatch = RE_FUNC_KEYWORD.exec(trimmed);
+  if (fnMatch) {
+    return fnMatch[1];
+  }
+  const clsMatch = RE_CLASS_KEYWORD.exec(trimmed);
+  if (clsMatch) {
+    return clsMatch[1];
+  }
+  const declMatch = RE_DECL_KEYWORD.exec(trimmed);
+  if (declMatch) {
+    return declMatch[1];
   }
 
   // Fallback: take the first identifier-like word
-  const fallback = trimmed.match(/^\s*(\w+)/);
+  const fallback = /^\s*(\w+)/.exec(trimmed);
   return fallback ? fallback[1] : trimmed.slice(0, 40);
 }
 
@@ -144,6 +153,104 @@ function dedup(arr: string[]): string[] {
 }
 
 // ---------------------------------------------------------------------------
+// Parser helpers (extracted to reduce cognitive complexity of parseDiff)
+// ---------------------------------------------------------------------------
+
+interface ParseState {
+  current: ChangedFile | null;
+  currentHunk: DiffHunk | null;
+  files: ChangedFile[];
+}
+
+/** Flush the current hunk into the current file's hunk list. */
+function flushHunk(state: ParseState): void {
+  if (state.currentHunk && state.current) {
+    state.current.hunks.push(state.currentHunk);
+    state.currentHunk = null;
+  }
+}
+
+/** Finalize and flush the current file into the file list. */
+function flushFile(state: ParseState): void {
+  if (state.current) {
+    finalizeFile(state.current);
+    state.files.push(state.current);
+    state.current = null;
+  }
+}
+
+/** Apply file-level metadata lines (new/deleted/rename). Returns true if handled. */
+function handleFileMetadata(line: string, current: ChangedFile): boolean {
+  if (RE_NEW_FILE.test(line)) {
+    current.isNew = true;
+    return true;
+  }
+  if (RE_DELETED_FILE.test(line)) {
+    current.isDeleted = true;
+    return true;
+  }
+  const renameFrom = RE_RENAME_FROM.exec(line);
+  if (renameFrom) {
+    current.oldPath = renameFrom[1];
+    current.isRenamed = true;
+    return true;
+  }
+  const renameTo = RE_RENAME_TO.exec(line);
+  if (renameTo) {
+    current.path = renameTo[1];
+    return true;
+  }
+  return false;
+}
+
+/** Handle --- / +++ path lines (only outside a hunk). Returns true if handled. */
+function handlePathLine(line: string, current: ChangedFile, inHunk: boolean): boolean {
+  if (inHunk) {
+    return false;
+  }
+  const oldPathMatch = RE_OLD_PATH.exec(line);
+  if (oldPathMatch) {
+    if (oldPathMatch[1] !== "/dev/null") {
+      current.oldPath = oldPathMatch[1];
+    }
+    return true;
+  }
+  const newPathMatch = RE_NEW_PATH.exec(line);
+  if (newPathMatch) {
+    if (newPathMatch[1] !== "/dev/null") {
+      current.path = newPathMatch[1];
+    }
+    return true;
+  }
+  return false;
+}
+
+/** Build a DiffHunk from a hunk header regex match. */
+function createHunkFromMatch(m: RegExpExecArray): DiffHunk {
+  return {
+    oldStart: Number.parseInt(m[1], 10),
+    oldCount: m[2] === undefined ? 1 : Number.parseInt(m[2], 10),
+    newStart: Number.parseInt(m[3], 10),
+    newCount: m[4] === undefined ? 1 : Number.parseInt(m[4], 10),
+    functionContext: extractFunctionName(m[5] ?? ""),
+    addedLines: [],
+    removedLines: [],
+    contextLines: [],
+  };
+}
+
+/** Categorise a single line within a hunk body. */
+function processHunkLine(line: string, hunk: DiffHunk): void {
+  if (line.startsWith("+") && !line.startsWith("+++")) {
+    hunk.addedLines.push(line.slice(1));
+  } else if (line.startsWith("-") && !line.startsWith("---")) {
+    hunk.removedLines.push(line.slice(1));
+  } else if (line.startsWith(" ")) {
+    hunk.contextLines.push(line.slice(1));
+  }
+}
+
+// ---------------------------------------------------------------------------
 // Public API
 // ---------------------------------------------------------------------------
 
@@ -157,117 +264,53 @@ function dedup(arr: string[]): string[] {
  */
 export function parseDiff(rawDiff: string): DiffAnalysis {
   const lines = rawDiff.split("\n");
-  const files: ChangedFile[] = [];
-  let current: ChangedFile | null = null;
-  let currentHunk: DiffHunk | null = null;
+  const state: ParseState = { current: null, currentHunk: null, files: [] };
 
   for (const line of lines) {
-    // ---- File boundary ----
-    const diffHeader = line.match(RE_DIFF_HEADER);
+    const diffHeader = RE_DIFF_HEADER.exec(line);
     if (diffHeader) {
-      // Close any hunk in progress
-      if (currentHunk && current) {
-        current.hunks.push(currentHunk);
-        currentHunk = null;
-      }
-      // Close any file in progress
-      if (current) {
-        finalizeFile(current);
-        files.push(current);
-      }
-      current = makeChangedFile(diffHeader[2]);
+      flushHunk(state);
+      flushFile(state);
+      state.current = makeChangedFile(diffHeader[2]);
       continue;
     }
 
-    if (!current) {
+    if (!state.current) {
       continue;
     }
 
-    // ---- File-level metadata ----
-    if (RE_NEW_FILE.test(line)) {
-      current.isNew = true;
+    if (handleFileMetadata(line, state.current)) {
       continue;
     }
-    if (RE_DELETED_FILE.test(line)) {
-      current.isDeleted = true;
-      continue;
-    }
-    const renameFrom = line.match(RE_RENAME_FROM);
-    if (renameFrom) {
-      current.oldPath = renameFrom[1];
-      current.isRenamed = true;
-      continue;
-    }
-    const renameTo = line.match(RE_RENAME_TO);
-    if (renameTo) {
-      current.path = renameTo[1];
+    if (handlePathLine(line, state.current, state.currentHunk !== null)) {
       continue;
     }
 
-    // ---- Path lines (--- / +++) ----
-    const oldPathMatch = line.match(RE_OLD_PATH);
-    if (oldPathMatch && !currentHunk) {
-      if (oldPathMatch[1] !== "/dev/null") {
-        current.oldPath = oldPathMatch[1];
-      }
-      continue;
-    }
-    const newPathMatch = line.match(RE_NEW_PATH);
-    if (newPathMatch && !currentHunk) {
-      if (newPathMatch[1] !== "/dev/null") {
-        current.path = newPathMatch[1];
-      }
-      continue;
-    }
-
-    // ---- Hunk header ----
-    const hunkMatch = line.match(RE_HUNK_HEADER);
+    const hunkMatch = RE_HUNK_HEADER.exec(line);
     if (hunkMatch) {
-      // Commit previous hunk
-      if (currentHunk) {
-        current.hunks.push(currentHunk);
+      if (state.currentHunk) {
+        state.current.hunks.push(state.currentHunk);
       }
-      currentHunk = {
-        oldStart: Number.parseInt(hunkMatch[1], 10),
-        oldCount: hunkMatch[2] !== undefined ? Number.parseInt(hunkMatch[2], 10) : 1,
-        newStart: Number.parseInt(hunkMatch[3], 10),
-        newCount: hunkMatch[4] !== undefined ? Number.parseInt(hunkMatch[4], 10) : 1,
-        functionContext: extractFunctionName(hunkMatch[5] ?? ""),
-        addedLines: [],
-        removedLines: [],
-        contextLines: [],
-      };
+      state.currentHunk = createHunkFromMatch(hunkMatch);
       continue;
     }
 
-    // ---- Hunk body ----
-    if (currentHunk) {
-      if (line.startsWith("+") && !line.startsWith("+++")) {
-        currentHunk.addedLines.push(line.slice(1));
-      } else if (line.startsWith("-") && !line.startsWith("---")) {
-        currentHunk.removedLines.push(line.slice(1));
-      } else if (line.startsWith(" ")) {
-        currentHunk.contextLines.push(line.slice(1));
-      }
+    if (state.currentHunk) {
+      processHunkLine(line, state.currentHunk);
     }
   }
 
   // Flush last hunk & file
-  if (currentHunk && current) {
-    current.hunks.push(currentHunk);
-  }
-  if (current) {
-    finalizeFile(current);
-    files.push(current);
-  }
+  flushHunk(state);
+  flushFile(state);
 
-  const totalAdditions = files.reduce((s, f) => s + f.totalAdditions, 0);
-  const totalDeletions = files.reduce((s, f) => s + f.totalDeletions, 0);
+  const totalAdditions = state.files.reduce((s, f) => s + f.totalAdditions, 0);
+  const totalDeletions = state.files.reduce((s, f) => s + f.totalDeletions, 0);
 
   return {
-    files,
+    files: state.files,
     stats: {
-      filesChanged: files.length,
+      filesChanged: state.files.length,
       totalAdditions,
       totalDeletions,
     },

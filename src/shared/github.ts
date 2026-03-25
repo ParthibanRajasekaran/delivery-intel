@@ -29,12 +29,12 @@ export function createOctokit(token?: string): Octokit {
 export function parseRepoSlug(input: string): RepoIdentifier {
   const cleaned = input.trim().replace(/\.git$/, "");
 
-  const urlMatch = cleaned.match(/github\.com\/([A-Za-z0-9_.-]+)\/([A-Za-z0-9_.-]+)/);
+  const urlMatch = /github\.com\/([A-Za-z0-9_.-]+)\/([A-Za-z0-9_.-]+)/.exec(cleaned);
   if (urlMatch) {
     return { owner: urlMatch[1], repo: urlMatch[2] };
   }
 
-  const slugMatch = cleaned.match(/^([A-Za-z0-9_.-]+)\/([A-Za-z0-9_.-]+)$/);
+  const slugMatch = /^([A-Za-z0-9_.-]+)\/([A-Za-z0-9_.-]+)$/.exec(cleaned);
   if (slugMatch) {
     return { owner: slugMatch[1], repo: slugMatch[2] };
   }

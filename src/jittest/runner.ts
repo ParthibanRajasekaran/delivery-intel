@@ -156,24 +156,27 @@ function buildMarkdownSummary(report: Omit<JITTestReport, "markdownSummary">): s
   ];
 
   if (cc.length > 0) {
-    lines.push("### 🚨 Candidate Catches");
-    lines.push("");
-    lines.push("These tests are designed to FAIL if the code change introduces a bug.");
-    lines.push("Investigate each before merging.");
-    lines.push("");
+    lines.push(
+      "### 🚨 Candidate Catches",
+      "",
+      "These tests are designed to FAIL if the code change introduces a bug.",
+      "Investigate each before merging.",
+      "",
+    );
     for (const { test, assessment } of cc) {
-      lines.push(`#### \`${test.targetFunction}\` in \`${test.targetFile}\``);
-      lines.push(`- **Category**: ${test.category}`);
-      lines.push(`- **Confidence**: ${(assessment.confidence * 100).toFixed(0)}%`);
-      lines.push(`- **Rationale**: ${test.rationale}`);
-      lines.push(`- **Test ID**: \`${test.id}\``);
-      lines.push("");
+      lines.push(
+        `#### \`${test.targetFunction}\` in \`${test.targetFile}\``,
+        `- **Category**: ${test.category}`,
+        `- **Confidence**: ${(assessment.confidence * 100).toFixed(0)}%`,
+        `- **Rationale**: ${test.rationale}`,
+        `- **Test ID**: \`${test.id}\``,
+        "",
+      );
     }
   }
 
   if (nr.length > 0) {
-    lines.push("### ⚠️ Needs Human Review");
-    lines.push("");
+    lines.push("### ⚠️ Needs Human Review", "");
     for (const { test } of nr) {
       lines.push(
         `- \`${test.id}\` — \`${test.targetFunction}\` in \`${test.targetFile}\` (${test.category})`,
@@ -182,8 +185,8 @@ function buildMarkdownSummary(report: Omit<JITTestReport, "markdownSummary">): s
     lines.push("");
   }
 
-  lines.push("---");
   lines.push(
+    "---",
     `*JITTest pipeline based on [arXiv:2601.22832](https://arxiv.org/abs/2601.22832) — ` +
       `Just-in-Time Catching Test Generation at Meta*`,
   );

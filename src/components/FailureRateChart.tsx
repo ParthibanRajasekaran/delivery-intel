@@ -70,8 +70,8 @@ export function FailureRateChart({ metrics }: Readonly<FailureRateChartProps>) {
                 formatter={(value) => `${value}%`}
               />
               <Bar dataKey="value" radius={[0, 6, 6, 0]}>
-                {data.map((entry, index) => (
-                  <Cell key={index} fill={entry.color} />
+                {data.map((entry) => (
+                  <Cell key={entry.name} fill={entry.color} />
                 ))}
               </Bar>
             </BarChart>

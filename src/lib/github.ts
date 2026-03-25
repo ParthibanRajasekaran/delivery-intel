@@ -14,7 +14,6 @@ import type {
   GQLPullRequestsResponse,
 } from "@/types";
 import {
-  parseRepoSlug as _parseRepoSlug,
   createOctokit as _createOctokit,
   fetchDeployments as _fetchDeployments,
   fetchMergedPRs as _fetchMergedPRs,
@@ -50,7 +49,7 @@ function createGraphQL() {
 // Re-export parseRepoSlug from shared module
 // ---------------------------------------------------------------------------
 
-export const parseRepoSlug = _parseRepoSlug;
+export { parseRepoSlug } from "../shared/github";
 
 // ---------------------------------------------------------------------------
 // REST API calls (thin wrappers over shared helpers)

@@ -129,6 +129,156 @@ ${bold("WHAT IT MEASURES")}
 // ---------------------------------------------------------------------------
 // Main
 // ---------------------------------------------------------------------------
+// Arg parsing (extracted to reduce main() cognitive complexity)
+// ---------------------------------------------------------------------------
+
+interface CliArgs {
+  jsonMode: boolean;
+  noSpinner: boolean;
+  riskMode: boolean;
+  narrativeMode: boolean;
+  outputFile: string | null;
+  token: string | null;
+  repo: string | null;
+}
+
+function parseCliArgs(argv: string[]): CliArgs {
+  const jsonMode = argv.includes("--json");
+  const noSpinner = argv.includes("--no-spinner");
+  const riskMode = argv.includes("--risk");
+  const narrativeMode = argv.includes("--narrative");
+  let outputFile: string | null = null;
+  let token: string | null = null;
+  let repo: string | null = null;
+
+  for (let i = 0; i < argv.length; i++) {
+    if (argv[i] === "--output" && argv[i + 1]) {
+      i++;
+      outputFile = argv[i];
+    } else if (argv[i] === "--token" && i + 1 < argv.length) {
+      i++;
+      token = argv[i] ?? null;
+    } else if (!argv[i].startsWith("--")) {
+      repo = argv[i];
+    }
+  }
+
+  return { jsonMode, noSpinner, riskMode, narrativeMode, outputFile, token, repo };
+}
+
+// ---------------------------------------------------------------------------
+// Auth feedback
+// ---------------------------------------------------------------------------
+
+function printAuthFeedback(resolved: { source: string } | null): void {
+  console.log();
+  if (resolved) {
+    console.log("  " + dim(`Auth: ${resolved.source}`));
+  } else {
+    console.log(
+      "  " +
+        chalk.hex("#ffbe0b")(
+          "⚠  No token — using unauthenticated mode (60 req/hr, public repos only)",
+        ),
+    );
+    console.log(
+      "  " +
+        dim("Tip: run ") +
+        cyan("gh auth login") +
+        dim(" for 5,000 req/hr + private repo access"),
+    );
+  }
+  console.log();
+}
+
+// ---------------------------------------------------------------------------
+// Narrative resolution
+// ---------------------------------------------------------------------------
+
+async function resolveNarrative(
+  result: AnalysisResult,
+  risk: RiskBreakdown | undefined,
+  jsonMode: boolean,
+): Promise<{ narrative: string; model: string }> {
+  let narrative: string | undefined;
+  let model = "template";
+
+  try {
+    const llmResult = await generateNarrativeSummary({ analysis: result, risk });
+    if (llmResult) {
+      narrative = llmResult.narrative;
+      model = llmResult.model;
+    }
+  } catch (llmErr: unknown) {
+    if (!jsonMode) {
+      const llmMsg = llmErr instanceof Error ? llmErr.message : String(llmErr);
+      console.log(
+        "  " +
+          chalk.hex("#ffbe0b")("⚠  LLM narrative failed, using template fallback: ") +
+          dim(llmMsg),
+      );
+    }
+  }
+
+  if (!narrative) {
+    narrative = generateFallbackNarrative({ analysis: result, risk });
+    model = "template";
+  }
+
+  return { narrative, model };
+}
+
+// ---------------------------------------------------------------------------
+// Output handling
+// ---------------------------------------------------------------------------
+
+function handleOutput(
+  result: AnalysisResult,
+  opts: {
+    jsonMode: boolean;
+    outputFile: string | null;
+    risk?: RiskBreakdown;
+    narrative?: string;
+    narrativeModel?: string;
+  },
+): void {
+  if (opts.jsonMode || opts.outputFile) {
+    const output = {
+      ...result,
+      ...(opts.risk ? { riskScore: opts.risk } : {}),
+      ...(opts.narrative ? { narrative: opts.narrative } : {}),
+    };
+    const json = JSON.stringify(output, null, 2);
+    if (opts.outputFile) {
+      fs.writeFileSync(opts.outputFile, json, "utf-8");
+      if (!opts.jsonMode) {
+        console.log("  " + green("✓") + " Report saved to " + bold(opts.outputFile));
+      }
+    }
+    if (opts.jsonMode) {
+      console.log(json);
+    }
+  } else {
+    console.log(
+      renderCyberReport(result, {
+        risk: opts.risk,
+        narrative: opts.narrative,
+        narrativeModel: opts.narrativeModel,
+      }),
+    );
+  }
+
+  if (process.env.GITHUB_ACTIONS) {
+    const wrote = writeStepSummary(result);
+    if (wrote && !opts.jsonMode) {
+      console.log("  " + green("✓") + " Step Summary written (SVG health ring attached)");
+    }
+  }
+}
+
+// ---------------------------------------------------------------------------
+// Main
+// ---------------------------------------------------------------------------
 
 async function main(): Promise<void> {
   const args = process.argv.slice(2);
@@ -143,138 +293,43 @@ async function main(): Promise<void> {
     process.exit(0);
   }
 
-  // Parse args
-  const jsonMode = args.includes("--json");
-  const noSpinner = args.includes("--no-spinner");
-  const riskMode = args.includes("--risk");
-  const narrativeMode = args.includes("--narrative");
-  let outputFile: string | null = null;
-  let token: string | null = null;
-  let repo: string | null = null;
+  const cli = parseCliArgs(args);
+  const resolved = resolveToken(cli.token);
+  const token = resolved?.token ?? null;
 
-  for (let i = 0; i < args.length; i++) {
-    if (args[i] === "--output" && args[i + 1]) {
-      i++;
-      outputFile = args[i];
-    } else if (args[i] === "--token" && i + 1 < args.length) {
-      i++;
-      token = args[i] ?? null;
-    } else if (!args[i].startsWith("--")) {
-      repo = args[i];
-    }
-  }
-
-  const resolved = resolveToken(token);
-  if (resolved) {
-    token = resolved.token;
-  } else {
-    token = null;
-  }
-
-  if (!repo) {
+  if (!cli.repo) {
     console.error(red("Error:") + " No repository specified.");
     console.error(dim("Usage: npx delivery-intel <owner/repo>"));
     process.exit(1);
   }
 
-  // Pre-analysis auth feedback (only in human-readable mode)
-  if (!jsonMode) {
-    console.log();
-    if (resolved) {
-      console.log("  " + dim(`Auth: ${resolved.source}`));
-    } else {
-      console.log(
-        "  " +
-          chalk.hex("#ffbe0b")(
-            "⚠  No token — using unauthenticated mode (60 req/hr, public repos only)",
-          ),
-      );
-      console.log(
-        "  " +
-          dim("Tip: run ") +
-          cyan("gh auth login") +
-          dim(" for 5,000 req/hr + private repo access"),
-      );
-    }
-    console.log();
+  if (!cli.jsonMode) {
+    printAuthFeedback(resolved);
   }
 
   try {
-    // Run analysis — with or without spinner
-    let result: AnalysisResult;
-    const analysisTask = analyze(repo, token ?? undefined);
+    const analysisTask = analyze(cli.repo, token ?? undefined);
+    const result =
+      !cli.jsonMode && !cli.noSpinner ? await withScanSequence(analysisTask) : await analysisTask;
 
-    if (!jsonMode && !noSpinner) {
-      result = await withScanSequence(analysisTask);
-    } else {
-      result = await analysisTask;
-    }
+    const risk = cli.riskMode ? computeRiskScore({ doraMetrics: result.doraMetrics }) : undefined;
 
-    // ---- Burnout Risk Score (when requested) ----------------------------
-    let risk: RiskBreakdown | undefined;
-    if (riskMode) {
-      risk = computeRiskScore({ doraMetrics: result.doraMetrics });
-    }
-
-    // ---- Executive Narrative (when requested) ---------------------------
     let narrative: string | undefined;
     let narrativeModel = "template";
-    if (narrativeMode) {
-      try {
-        const llmResult = await generateNarrativeSummary({ analysis: result, risk });
-        if (llmResult) {
-          narrative = llmResult.narrative;
-          narrativeModel = llmResult.model;
-        }
-      } catch (llmErr: unknown) {
-        // LLM failed — fall back to template and surface a non-fatal warning
-        if (!jsonMode) {
-          const llmMsg = llmErr instanceof Error ? llmErr.message : String(llmErr);
-          console.log(
-            "  " +
-              chalk.hex("#ffbe0b")("⚠  LLM narrative failed, using template fallback: ") +
-              dim(llmMsg),
-          );
-        }
-      }
-      // Fall back to template if LLM didn't produce a narrative
-      if (!narrative) {
-        narrative = generateFallbackNarrative({ analysis: result, risk });
-        narrativeModel = "template";
-      }
+    if (cli.narrativeMode) {
+      const nr = await resolveNarrative(result, risk, cli.jsonMode);
+      narrative = nr.narrative;
+      narrativeModel = nr.model;
     }
 
-    // ---- JSON output (machine-readable, unstyled) -----------------------
-    if (jsonMode || outputFile) {
-      const output = {
-        ...result,
-        ...(risk ? { riskScore: risk } : {}),
-        ...(narrative ? { narrative } : {}),
-      };
-      const json = JSON.stringify(output, null, 2);
-      if (outputFile) {
-        fs.writeFileSync(outputFile, json, "utf-8");
-        if (!jsonMode) {
-          console.log("  " + green("✓") + " Report saved to " + bold(outputFile));
-        }
-      }
-      if (jsonMode) {
-        console.log(json);
-      }
-    } else {
-      // ---- Cyber-Diagnostic human output --------------------------------
-      console.log(renderCyberReport(result, { risk, narrative, narrativeModel }));
-    }
+    handleOutput(result, {
+      jsonMode: cli.jsonMode,
+      outputFile: cli.outputFile,
+      risk,
+      narrative,
+      narrativeModel,
+    });
 
-    // ---- GitHub Actions Step Summary ------------------------------------
-    if (process.env.GITHUB_ACTIONS) {
-      const wrote = writeStepSummary(result);
-      if (wrote && !jsonMode) {
-        console.log("  " + green("✓") + " Step Summary written (SVG health ring attached)");
-      }
-    }
-
-    // Exit code based on score
     if (result.overallScore < 25) {
       process.exit(2);
     }

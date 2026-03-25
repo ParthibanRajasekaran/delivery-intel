@@ -156,7 +156,8 @@ export function generateStepSummaryMarkdown(result: AnalysisResult): string {
   if (result.suggestions.length > 0) {
     sections.push("### 💡 Suggestions\n");
     for (const s of result.suggestions) {
-      const icon = s.category === "security" ? "🔒" : s.category === "reliability" ? "🛡️" : "⚡";
+      const iconMap: Record<string, string> = { security: "🔒", reliability: "🛡️" };
+      const icon = iconMap[s.category] ?? "⚡";
       sections.push(`- ${icon} **${s.title}** (${s.severity}) — ${s.description}`);
     }
     sections.push("");

@@ -273,17 +273,17 @@ describe("Change Failure Rate", () => {
 // Mean Time to Restore (MTTR)
 // =========================================================================
 
-describe("Mean Time to Restore", () => {
-  /** Helper: set up a failure→success pair on the given branch with the given gap. */
-  function setupMTTR(failTime: string, successTime: string, branch = "main") {
-    mockGitHub({
-      runs: [
-        makeRun({ conclusion: "failure", created_at: failTime, head_branch: branch }),
-        makeRun({ conclusion: "success", created_at: successTime, head_branch: branch }),
-      ],
-    });
-  }
+/** Helper: set up a failure→success pair on the given branch with the given gap. */
+function setupMTTR(failTime: string, successTime: string, branch = "main") {
+  mockGitHub({
+    runs: [
+      makeRun({ conclusion: "failure", created_at: failTime, head_branch: branch }),
+      makeRun({ conclusion: "success", created_at: successTime, head_branch: branch }),
+    ],
+  });
+}
 
+describe("Mean Time to Restore", () => {
   it("computes MTTR when a failure is followed by a success on the same branch", async () => {
     setupMTTR("2026-02-20T10:00:00Z", "2026-02-20T12:00:00Z");
 

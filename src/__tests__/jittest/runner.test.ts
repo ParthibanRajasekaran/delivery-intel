@@ -3,9 +3,8 @@
 // ============================================================================
 import { describe, it, expect } from "vitest";
 import { runJITTestPipeline, getDiffFromGit } from "../../jittest/runner";
-import type { LLMAssessor } from "../../jittest/assessors";
+import type { LLMAssessor, AssessmentResult } from "../../jittest/assessors";
 import type { CatchingTest } from "../../jittest/catchingTestGenerator";
-import type { AssessmentResult } from "../../jittest/assessors";
 
 // ---------------------------------------------------------------------------
 // Fixtures

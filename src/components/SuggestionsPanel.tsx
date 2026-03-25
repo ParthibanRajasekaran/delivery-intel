@@ -57,9 +57,9 @@ export function SuggestionsPanel({ suggestions }: Readonly<SuggestionsPanelProps
         animate="show"
         variants={{ show: { transition: { staggerChildren: 0.1, delayChildren: 0.3 } } }}
       >
-        {suggestions.map((s, i) => (
+        {suggestions.map((s) => (
           <motion.div
-            key={i}
+            key={`${s.category}-${s.title}`}
             className="rounded-lg p-4 suggestion-card"
             variants={suggestionItem}
             transition={{ duration: 0.4, ease: "easeOut" }}
@@ -95,7 +95,7 @@ export function SuggestionsPanel({ suggestions }: Readonly<SuggestionsPanelProps
             <ul className="ml-7 space-y-1">
               {s.actionItems.map((item, j) => (
                 <li
-                  key={j}
+                  key={`action-${s.title}-${j}`}
                   className="text-xs flex items-start gap-1.5"
                   style={{ color: "var(--text)" }}
                 >

@@ -46,7 +46,7 @@ export function parseRequirementsTxt(raw: string): ParsedDependency[] {
     if (!trimmed || trimmed.startsWith("#")) {
       continue;
     }
-    const match = trimmed.match(/^([A-Za-z0-9_.-]+)\s*[=><~!]+\s*([0-9.]+)/);
+    const match = /^([A-Za-z0-9_.-]+)\s*[=><~!]+\s*([0-9.]+)/.exec(trimmed);
     if (match) {
       deps.push({ name: match[1], version: match[2], ecosystem: "PyPI" });
     }
@@ -60,7 +60,7 @@ export function parseRequirementsTxt(raw: string): ParsedDependency[] {
 
 export function parseGoMod(raw: string): ParsedDependency[] {
   const deps: ParsedDependency[] = [];
-  const requireBlock = raw.match(/require\s*\(([\s\S]*?)\)/);
+  const requireBlock = /require\s*\(([\s\S]*?)\)/.exec(raw);
   if (!requireBlock) {
     return deps;
   }

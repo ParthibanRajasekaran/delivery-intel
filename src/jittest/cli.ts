@@ -68,7 +68,9 @@ async function main() {
   );
 }
 
-main().catch((err) => {
+try {
+  await main();
+} catch (err) {
   process.stderr.write(`[jittest] Fatal error: ${(err as Error).message}\n`);
   process.exit(1);
-});
+}

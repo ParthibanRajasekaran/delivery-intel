@@ -382,12 +382,14 @@ function buildTestCode(category: ChangeCategory, ctx: TemplateContext, index: nu
 }
 
 function buildRationale(category: ChangeCategory, hunk: DiffHunk, fn: string): string {
-  const linesSummary =
-    hunk.addedLines.length > 0
-      ? `Added: \`${hunk.addedLines[0].trim().slice(0, 80)}\``
-      : hunk.removedLines.length > 0
-        ? `Removed: \`${hunk.removedLines[0].trim().slice(0, 80)}\``
-        : "Modification detected";
+  let linesSummary: string;
+  if (hunk.addedLines.length > 0) {
+    linesSummary = `Added: \`${hunk.addedLines[0].trim().slice(0, 80)}\``;
+  } else if (hunk.removedLines.length > 0) {
+    linesSummary = `Removed: \`${hunk.removedLines[0].trim().slice(0, 80)}\``;
+  } else {
+    linesSummary = "Modification detected";
+  }
 
   const categoryLabels: Record<ChangeCategory, string> = {
     boundary_condition: "A numeric boundary/threshold was changed",

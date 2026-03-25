@@ -146,25 +146,28 @@ export interface DependencyVulnerability {
 
 // ----- Computed Metrics -----
 
+export type DORAPerformanceRating = "Elite" | "High" | "Medium" | "Low";
+export type DORARating = DORAPerformanceRating | "N/A";
+
 export interface DORAMetrics {
   deploymentFrequency: {
     deploymentsPerWeek: number;
-    rating: "Elite" | "High" | "Medium" | "Low";
+    rating: DORAPerformanceRating;
     source: "deployments_api" | "merged_prs_fallback";
   };
   leadTimeForChanges: {
     medianHours: number;
-    rating: "Elite" | "High" | "Medium" | "Low" | "N/A";
+    rating: DORARating;
   };
   changeFailureRate: {
     percentage: number;
     failedRuns: number;
     totalRuns: number;
-    rating: "Elite" | "High" | "Medium" | "Low" | "N/A";
+    rating: DORARating;
   };
   meanTimeToRestore: {
     medianHours: number | null; // null if no failures found
-    rating: "Elite" | "High" | "Medium" | "Low" | "N/A";
+    rating: DORARating;
   };
 }
 

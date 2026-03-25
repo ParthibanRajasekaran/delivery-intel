@@ -84,7 +84,7 @@ function median(values: number[]): number {
   }
   const sorted = [...values].sort((a, b) => a - b);
   const mid = Math.floor(sorted.length / 2);
-  return sorted.length % 2 !== 0 ? sorted[mid] : (sorted[mid - 1] + sorted[mid]) / 2;
+  return sorted.length % 2 === 0 ? (sorted[mid - 1] + sorted[mid]) / 2 : sorted[mid];
 }
 
 // ---------------------------------------------------------------------------
@@ -99,7 +99,7 @@ async function computeDeploymentFrequency(
 
   if (deployments.length >= 2) {
     const dates = deployments.map((d) => parseISO(d.created_at));
-    const weeks = differenceInCalendarWeeks(dates[0], dates[dates.length - 1]) || 1;
+    const weeks = differenceInCalendarWeeks(dates[0], dates.at(-1)!) || 1;
     const perWeek = +(deployments.length / weeks).toFixed(2);
     return {
       deploymentsPerWeek: perWeek,
@@ -122,7 +122,7 @@ async function computeDeploymentFrequency(
     .map((pr) => parseISO(pr.merged_at!))
     .sort((a, b) => b.getTime() - a.getTime());
 
-  const weeks = differenceInCalendarWeeks(prDates[0], prDates[prDates.length - 1]) || 1;
+  const weeks = differenceInCalendarWeeks(prDates[0], prDates.at(-1)!) || 1;
   const perWeek = +(mergedPRs.length / weeks).toFixed(2);
 
   return {

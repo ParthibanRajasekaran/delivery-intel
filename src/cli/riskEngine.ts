@@ -171,7 +171,7 @@ export function computeRiskScore(input: RiskInput): RiskBreakdown {
   if (sentimentNegativeRatio !== undefined) {
     const clampedRatio = Math.min(1, Math.max(0, sentimentNegativeRatio));
     if (clampedRatio > 0) {
-      sentimentMultiplier = 1.0 + clampedRatio * SENTIMENT_NEGATIVE_MULTIPLIER;
+      sentimentMultiplier = 1 + clampedRatio * SENTIMENT_NEGATIVE_MULTIPLIER;
     }
   }
 

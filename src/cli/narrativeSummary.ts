@@ -102,14 +102,15 @@ export function buildUserPrompt(input: NarrativeInput): string {
   );
 
   if (analysis.vulnerabilities.length > 0) {
-    parts.push("## Vulnerabilities");
-    parts.push(`${analysis.vulnerabilities.length} dependency vulnerability(ies) detected.`);
+    parts.push(
+      "## Vulnerabilities",
+      `${analysis.vulnerabilities.length} dependency vulnerability(ies) detected.`,
+    );
     const bySev: Record<string, number> = {};
     for (const v of analysis.vulnerabilities) {
       bySev[v.severity] = (bySev[v.severity] ?? 0) + 1;
     }
-    parts.push(JSON.stringify(bySev));
-    parts.push("");
+    parts.push(JSON.stringify(bySev), "");
   }
 
   if (analysis.suggestions.length > 0) {
@@ -121,13 +122,15 @@ export function buildUserPrompt(input: NarrativeInput): string {
   }
 
   if (risk) {
-    parts.push("## Burnout Risk Score");
-    parts.push(`Score: ${risk.score}/100 (${risk.level})`);
-    parts.push(`Cycle Time Delta: ${risk.cycleTimeDelta}`);
-    parts.push(`Failure Rate Delta: ${risk.failureRateDelta}`);
-    parts.push(`Sentiment Multiplier: ${risk.sentimentMultiplier}`);
-    parts.push(`Summary: ${risk.summary}`);
-    parts.push("");
+    parts.push(
+      "## Burnout Risk Score",
+      `Score: ${risk.score}/100 (${risk.level})`,
+      `Cycle Time Delta: ${risk.cycleTimeDelta}`,
+      `Failure Rate Delta: ${risk.failureRateDelta}`,
+      `Sentiment Multiplier: ${risk.sentimentMultiplier}`,
+      `Summary: ${risk.summary}`,
+      "",
+    );
   }
 
   parts.push(
@@ -252,8 +255,7 @@ export function generateFallbackNarrative(input: NarrativeInput): string {
   } else {
     verdict = "degraded";
   }
-  lines.push(`**Delivery Health: ${verdict.toUpperCase()}** (${overallScore}/100)`);
-  lines.push("");
+  lines.push(`**Delivery Health: ${verdict.toUpperCase()}** (${overallScore}/100)`, "");
 
   // DORA summary
   const leadTimeText =
@@ -266,21 +268,20 @@ export function generateFallbackNarrative(input: NarrativeInput): string {
       : `${doraMetrics.changeFailureRate.percentage.toFixed(1)}% (${doraMetrics.changeFailureRate.rating})`;
   lines.push(
     `The team is deploying ${doraMetrics.deploymentFrequency.deploymentsPerWeek.toFixed(1)} times per week (${doraMetrics.deploymentFrequency.rating}) with ${leadTimeText}. The change failure rate sits at ${cfrText}.`,
+    "",
   );
-  lines.push("");
 
   // Risk
   if (risk) {
-    lines.push(`The Burnout Risk Score is ${risk.score}/100 (${risk.level}). ${risk.summary}`);
-    lines.push("");
+    lines.push(`The Burnout Risk Score is ${risk.score}/100 (${risk.level}). ${risk.summary}`, "");
   }
 
   // Vulnerabilities
   if (analysis.vulnerabilities.length > 0) {
     lines.push(
       `There are ${analysis.vulnerabilities.length} dependency vulnerabilities that need attention.`,
+      "",
     );
-    lines.push("");
   }
 
   // Top suggestion

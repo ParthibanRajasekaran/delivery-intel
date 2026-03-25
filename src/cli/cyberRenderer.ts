@@ -236,8 +236,7 @@ function renderVulnerabilities(vulns: DependencyVulnerability[]): string {
   lines.push("  " + cyan.bold("◈  Vulnerability Scan") + dim("  (OSV.dev)"), "  " + sep, "");
 
   if (vulns.length === 0) {
-    lines.push("  " + green("✓ No known vulnerabilities found"));
-    lines.push("");
+    lines.push("  " + green("✓ No known vulnerabilities found"), "");
     return lines.join("\n");
   }
 
@@ -294,9 +293,12 @@ function renderSuggestions(suggestions: Suggestion[]): string {
   lines.push("  " + cyan.bold("◈  Suggestions"), "  " + sep, "");
 
   for (const s of suggestions) {
-    const icon = s.category === "security" ? "🔒" : s.category === "reliability" ? "🛡️ " : "⚡";
-    lines.push("  " + icon + " " + severityTag(s.severity) + " " + bold(s.title));
-    lines.push("  " + dim(s.description));
+    const iconMap: Record<string, string> = { security: "🔒", reliability: "🛡️ " };
+    const icon = iconMap[s.category] ?? "⚡";
+    lines.push(
+      "  " + icon + " " + severityTag(s.severity) + " " + bold(s.title),
+      "  " + dim(s.description),
+    );
     for (const action of s.actionItems) {
       lines.push("    " + cyan("→") + " " + action);
     }
@@ -371,8 +373,7 @@ function renderNarrative(narrative: string, model: string): string {
   for (const paragraph of narrative.split("\n\n")) {
     const trimmed = paragraph.trim();
     if (trimmed) {
-      lines.push("  " + trimmed.replaceAll("\n", "\n  "));
-      lines.push("");
+      lines.push("  " + trimmed.replaceAll("\n", "\n  "), "");
     }
   }
 
