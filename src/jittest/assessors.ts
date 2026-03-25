@@ -57,7 +57,7 @@ export interface AssessedCatchingTest {
 
 /** Returns true when the test code contains at least one Vitest assertion. */
 function ruleHasAssertions(testCode: string): { pass: boolean; reason: string } {
-  const hasExpect = /\bexpect\s*\(/.test(testCode);
+  const hasExpect = /\bexpect[ \t]*\(/.test(testCode);
   return {
     pass: hasExpect,
     reason: hasExpect
@@ -68,7 +68,7 @@ function ruleHasAssertions(testCode: string): { pass: boolean; reason: string } 
 
 /** Returns true when the test has at least one describe() block. */
 function ruleHasDescribeBlock(testCode: string): { pass: boolean; reason: string } {
-  const hasDescribe = /\bdescribe\s*\(/.test(testCode);
+  const hasDescribe = /\bdescribe[ \t]*\(/.test(testCode);
   return {
     pass: hasDescribe,
     reason: hasDescribe
@@ -79,7 +79,7 @@ function ruleHasDescribeBlock(testCode: string): { pass: boolean; reason: string
 
 /** Returns true when the test has at least one it() or test() call. */
 function ruleHasTestCase(testCode: string): { pass: boolean; reason: string } {
-  const hasIt = /\b(?:it|test)\s*\(/.test(testCode);
+  const hasIt = /\b(?:it|test)[ \t]*\(/.test(testCode);
   return {
     pass: hasIt,
     reason: hasIt
@@ -123,10 +123,10 @@ function ruleHasNonEmptyInvocation(testCode: string): { pass: boolean; reason: s
   // Strip vitest helpers (describe/it/expect/test) before checking for function
   // calls with arguments — otherwise describe("...") always satisfies the rule.
   const stripped = testCode.replaceAll(
-    /\b(describe|it|test|expect|import|from|require)\s*\(/g,
+    /\b(?:describe|it|test|expect|import|from|require)[ \t]*\(/g,
     "__VITEST__(",
   );
-  const hasArgs = /\w+\s*\([^)]+\)/.test(stripped);
+  const hasArgs = /\w+[ \t]*\([^)\n]{1,500}\)/.test(stripped);
   return {
     pass: hasArgs,
     reason: hasArgs

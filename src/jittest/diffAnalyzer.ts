@@ -99,9 +99,9 @@ const RE_HUNK_HEADER = /^@@ -(\d+)(?:,(\d+))? \+(\d+)(?:,(\d+))? @@\s*(.*)$/;
 //   "export function normalizeDelta(actual: number, ..."
 //   "classifyRiskLevel(score: number)"
 //   "  computeRiskScore("
-const RE_FUNC_KEYWORD = /\bfunction\s+(\w+)/;
-const RE_CLASS_KEYWORD = /\bclass\s+(\w+)/;
-const RE_DECL_KEYWORD = /\b(?:const|let|var)\s+(\w+)/;
+const RE_FUNC_KEYWORD = /\bfunction[ \t]+(\w+)/;
+const RE_CLASS_KEYWORD = /\bclass[ \t]+(\w+)/;
+const RE_DECL_KEYWORD = /\b(?:const|let|var)[ \t]+(\w+)/;
 
 // ---------------------------------------------------------------------------
 // Internal helpers

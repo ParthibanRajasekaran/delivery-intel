@@ -60,7 +60,7 @@ export function parseRequirementsTxt(raw: string): ParsedDependency[] {
 
 export function parseGoMod(raw: string): ParsedDependency[] {
   const deps: ParsedDependency[] = [];
-  const requireBlock = /require\s*\(([\s\S]*?)\)/.exec(raw);
+  const requireBlock = /require[ \t]*\(([^)]*)\)/.exec(raw);
   if (!requireBlock) {
     return deps;
   }

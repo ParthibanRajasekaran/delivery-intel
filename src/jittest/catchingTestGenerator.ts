@@ -75,19 +75,19 @@ export interface GenerationResult {
 
 /** Patterns that suggest a numeric boundary / threshold was changed. */
 const BOUNDARY_PATTERNS = [
-  /[><=!]=?\s*\d+/, // comparison with literal
+  /[><=!]=?[ \t]*\d+/, // comparison with literal
   /\bthreshold\b|\bthreashold\b|\blimit\b|\bmax\b|\bmin\b/i,
   /Math\.min|Math\.max|Math\.clamp/,
 ];
 
 /** Patterns that suggest arithmetic was changed. */
-const ARITHMETIC_PATTERNS = [/[+\-*/]\s*\d+/, /\+\+|--/, /\*=|\/=|\+=|-=/];
+const ARITHMETIC_PATTERNS = [/[+\-*/][ \t]*\d+/, /\+\+|--/, /\*=|\/=|\+=|-=/];
 
 /** Patterns that suggest a null / undefined guard was changed. */
 const NULL_CHECK_PATTERNS = [
   /\bnull\b|\bundefined\b/,
   /\?\?|!\./,
-  /typeof [^=]+ ===? ["']undefined["']/,
+  /typeof [^=\n]{1,60}===? ["']undefined["']/,
   /=== null|!== null|== null|!= null/,
 ];
 
@@ -95,7 +95,7 @@ const NULL_CHECK_PATTERNS = [
 const TYPE_COERCION_PATTERNS = [
   /parseInt|parseFloat|Number\(|String\(|Boolean\(/,
   /\.toString\(\)|\.valueOf\(\)/,
-  /\+\s*["']|["']\s*\+/,
+  /\+[ \t]*["']|["'][ \t]*\+/,
 ];
 
 /** Patterns for return value changes. */
@@ -104,7 +104,7 @@ const RETURN_VALUE_PATTERNS = [/^\s*return\s/m];
 /** Patterns for control flow changes. */
 const CONTROL_FLOW_PATTERNS = [
   /^\s*(if|else|switch|case|break|continue|for|while)\b/m,
-  /\?\s*[^:]+:/, // ternary
+  /\?[ \t]*[^:\n]{0,200}:/, // ternary
 ];
 
 /** Patterns for string formatting changes. */
