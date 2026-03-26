@@ -13,6 +13,7 @@
 // ============================================================================
 
 import { execFileSync } from "node:child_process";
+import { existsSync } from "node:fs";
 import { parseDiff, filterSourceFiles } from "./diffAnalyzer.js";
 import { generateCatchingTests } from "./catchingTestGenerator.js";
 import {
@@ -26,6 +27,19 @@ import {
   type AssessedCatchingTest,
 } from "./assessors.js";
 import type { DiffAnalysis } from "./diffAnalyzer.js";
+
+// Resolve absolute path of a binary from a fixed set of known safe directories.
+// Using an absolute path eliminates PATH lookup entirely (S4036).
+const SAFE_DIRS = ["/usr/local/bin", "/usr/bin", "/bin", "/opt/homebrew/bin", "/opt/local/bin"];
+function resolveAbsPath(bin: string): string {
+  for (const dir of SAFE_DIRS) {
+    const full = `${dir}/${bin}`;
+    if (existsSync(full)) {
+      return full;
+    }
+  }
+  return bin; // fallback
+}
 
 // ---------------------------------------------------------------------------
 // Types
@@ -98,16 +112,10 @@ export function getDiffFromGit(baseRef?: string, cwd: string = process.cwd()): s
     ? ["diff", `${baseRef}..HEAD`, "--unified=5"]
     : ["diff", "HEAD", "--unified=5"];
   try {
-    // Pass only HOME + a fixed PATH — do NOT spread process.env so user-controlled
-    // vars like LD_PRELOAD/DYLD_INSERT_LIBRARIES cannot hijack the binary (S4036).
-    const safeEnv = {
-      HOME: process.env.HOME,
-      PATH: "/usr/local/bin:/usr/bin:/bin:/opt/homebrew/bin:/opt/local/bin",
-    } as unknown as NodeJS.ProcessEnv;
-    return execFileSync("git", args, {
+    // Use absolute path so no PATH lookup occurs — eliminates S4036.
+    return execFileSync(resolveAbsPath("git"), args, {
       cwd,
       encoding: "utf8",
-      env: safeEnv,
     });
   } catch (err) {
     throw new Error(

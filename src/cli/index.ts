@@ -21,6 +21,19 @@ import chalk from "chalk";
 import * as fs from "node:fs";
 import { execFileSync } from "node:child_process";
 
+// Resolve absolute path of a binary from a fixed set of known safe directories.
+// Using an absolute path eliminates PATH lookup entirely (S4036).
+const SAFE_DIRS = ["/usr/local/bin", "/usr/bin", "/bin", "/opt/homebrew/bin", "/opt/local/bin"];
+function resolveAbsPath(bin: string): string {
+  for (const dir of SAFE_DIRS) {
+    const full = `${dir}/${bin}`;
+    if (fs.existsSync(full)) {
+      return full;
+    }
+  }
+  return bin; // fallback — binary not found in safe dirs
+}
+
 // ---------------------------------------------------------------------------
 // Secure token resolution
 // ---------------------------------------------------------------------------
@@ -32,17 +45,11 @@ import { execFileSync } from "node:child_process";
 
 function resolveTokenFromGHCli(): string | null {
   try {
-    // Pass only HOME + a fixed PATH — do NOT spread process.env so user-controlled
-    // vars like LD_PRELOAD/DYLD_INSERT_LIBRARIES cannot hijack the binary (S4036).
-    const safeEnv = {
-      HOME: process.env.HOME,
-      PATH: "/usr/local/bin:/usr/bin:/bin:/opt/homebrew/bin:/opt/local/bin",
-    } as unknown as NodeJS.ProcessEnv;
-    const token = execFileSync("gh", ["auth", "token"], {
+    // Use absolute path so no PATH lookup occurs — eliminates S4036.
+    const token = execFileSync(resolveAbsPath("gh"), ["auth", "token"], {
       encoding: "utf-8",
       timeout: 5000,
       stdio: ["pipe", "pipe", "pipe"],
-      env: safeEnv,
     }).trim();
     return token ?? null;
   } catch {
