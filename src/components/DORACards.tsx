@@ -28,7 +28,7 @@ function MetricCard({
   description,
   subtitle,
   index,
-}: {
+}: Readonly<{
   title: string;
   value: string | number;
   unit: string;
@@ -36,7 +36,7 @@ function MetricCard({
   description: string;
   subtitle?: string;
   index: number;
-}) {
+}>) {
   return (
     <motion.div
       className="rounded-xl p-5 glass-card"

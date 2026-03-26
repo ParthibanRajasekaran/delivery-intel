@@ -99,7 +99,7 @@ async function computeDeploymentFrequency(
 
   if (deployments.length >= 2) {
     const dates = deployments.map((d) => parseISO(d.created_at));
-    const weeks = differenceInCalendarWeeks(dates[0], dates.at(-1)!) || 1;
+    const weeks = differenceInCalendarWeeks(dates[0], dates.at(-1) ?? dates[0]) || 1;
     const perWeek = +(deployments.length / weeks).toFixed(2);
     return {
       deploymentsPerWeek: perWeek,
@@ -122,7 +122,7 @@ async function computeDeploymentFrequency(
     .map((pr) => parseISO(pr.merged_at!))
     .sort((a, b) => b.getTime() - a.getTime());
 
-  const weeks = differenceInCalendarWeeks(prDates[0], prDates.at(-1)!) || 1;
+  const weeks = differenceInCalendarWeeks(prDates[0], prDates.at(-1) ?? prDates[0]) || 1;
   const perWeek = +(mergedPRs.length / weeks).toFixed(2);
 
   return {

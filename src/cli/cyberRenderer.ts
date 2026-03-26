@@ -414,14 +414,15 @@ export function renderCyberReport(
 ): string {
   const parts: string[] = [];
 
-  parts.push(renderBanner(result));
-  parts.push(renderHealthScore(result.overallScore));
-  parts.push(renderDORA(result.doraMetrics, result.dailyDeployments));
+  parts.push(
+    renderBanner(result),
+    renderHealthScore(result.overallScore),
+    renderDORA(result.doraMetrics, result.dailyDeployments),
+  );
   if (options.risk) {
     parts.push(renderRiskScore(options.risk));
   }
-  parts.push(renderVulnerabilities(result.vulnerabilities));
-  parts.push(renderSuggestions(result.suggestions));
+  parts.push(renderVulnerabilities(result.vulnerabilities), renderSuggestions(result.suggestions));
   if (options.narrative) {
     parts.push(renderNarrative(options.narrative, options.narrativeModel ?? "template"));
   }

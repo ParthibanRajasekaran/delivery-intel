@@ -136,21 +136,19 @@ export function generateStepSummaryMarkdown(result: AnalysisResult): string {
   const sections: string[] = [];
 
   // Header with inline SVG ring
-  sections.push("## 📡 Delivery Intel — Cyber-Diagnostic Report\n");
-  sections.push(`| Health Score | Details |`);
-  sections.push(`|:-----------:|---------|`);
   sections.push(
-    `| ${svgProgressRing(result.overallScore)} | **${result.overallScore}/100** — ${scoreLabel(result.overallScore)}<br>Repository: \`${result.repo.owner}/${result.repo.repo}\`<br>Scanned: ${result.fetchedAt} |`,
+    "## \uD83D\uDCE1 Delivery Intel \u2014 Cyber-Diagnostic Report\n",
+    `| Health Score | Details |`,
+    `|:-----------:|---------|`,
+    `| ${svgProgressRing(result.overallScore)} | **${result.overallScore}/100** \u2014 ${scoreLabel(result.overallScore)}<br>Repository: \`${result.repo.owner}/${result.repo.repo}\`<br>Scanned: ${result.fetchedAt} |`,
+    "",
   );
-  sections.push("");
 
   // DORA table
-  sections.push(doraTable(result.doraMetrics, result.dailyDeployments));
-  sections.push("");
+  sections.push(doraTable(result.doraMetrics, result.dailyDeployments), "");
 
   // Vulnerability table
-  sections.push(vulnTable(result.vulnerabilities));
-  sections.push("");
+  sections.push(vulnTable(result.vulnerabilities), "");
 
   // Suggestions
   if (result.suggestions.length > 0) {
