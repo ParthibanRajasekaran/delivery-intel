@@ -254,6 +254,41 @@ function processHunkLine(line: string, hunk: DiffHunk): void {
 // Public API
 // ---------------------------------------------------------------------------
 
+/** Process a single diff line, updating parse state. Returns true when handled. */
+function processLine(line: string, state: ParseState): void {
+  const diffHeader = RE_DIFF_HEADER.exec(line);
+  if (diffHeader) {
+    flushHunk(state);
+    flushFile(state);
+    state.current = makeChangedFile(diffHeader[2]);
+    return;
+  }
+
+  if (!state.current) {
+    return;
+  }
+
+  if (handleFileMetadata(line, state.current)) {
+    return;
+  }
+  if (handlePathLine(line, state.current, state.currentHunk !== null)) {
+    return;
+  }
+
+  const hunkMatch = RE_HUNK_HEADER.exec(line);
+  if (hunkMatch) {
+    if (state.currentHunk) {
+      state.current.hunks.push(state.currentHunk);
+    }
+    state.currentHunk = createHunkFromMatch(hunkMatch);
+    return;
+  }
+
+  if (state.currentHunk) {
+    processHunkLine(line, state.currentHunk);
+  }
+}
+
 /**
  * Parse a unified git diff string and return structured `DiffAnalysis`.
  *
@@ -267,37 +302,7 @@ export function parseDiff(rawDiff: string): DiffAnalysis {
   const state: ParseState = { current: null, currentHunk: null, files: [] };
 
   for (const line of lines) {
-    const diffHeader = RE_DIFF_HEADER.exec(line);
-    if (diffHeader) {
-      flushHunk(state);
-      flushFile(state);
-      state.current = makeChangedFile(diffHeader[2]);
-      continue;
-    }
-
-    if (!state.current) {
-      continue;
-    }
-
-    if (handleFileMetadata(line, state.current)) {
-      continue;
-    }
-    if (handlePathLine(line, state.current, state.currentHunk !== null)) {
-      continue;
-    }
-
-    const hunkMatch = RE_HUNK_HEADER.exec(line);
-    if (hunkMatch) {
-      if (state.currentHunk) {
-        state.current.hunks.push(state.currentHunk);
-      }
-      state.currentHunk = createHunkFromMatch(hunkMatch);
-      continue;
-    }
-
-    if (state.currentHunk) {
-      processHunkLine(line, state.currentHunk);
-    }
+    processLine(line, state);
   }
 
   // Flush last hunk & file
