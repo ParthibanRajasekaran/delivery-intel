@@ -19,7 +19,7 @@ import { computeRiskScore, type RiskBreakdown } from "./riskEngine.js";
 import { generateNarrativeSummary, generateFallbackNarrative } from "./narrativeSummary.js";
 import chalk from "chalk";
 import * as fs from "node:fs";
-import { execSync } from "node:child_process";
+import { execFileSync } from "node:child_process";
 
 // ---------------------------------------------------------------------------
 // Secure token resolution
@@ -32,10 +32,13 @@ import { execSync } from "node:child_process";
 
 function resolveTokenFromGHCli(): string | null {
   try {
-    const token = execSync("gh auth token", {
+    // Restrict PATH to fixed system directories to prevent PATH-injection (S4036)
+    const safePath = "/usr/local/bin:/usr/bin:/bin:/opt/homebrew/bin:/opt/local/bin";
+    const token = execFileSync("gh", ["auth", "token"], {
       encoding: "utf-8",
       timeout: 5000,
       stdio: ["pipe", "pipe", "pipe"],
+      env: { ...process.env, PATH: safePath },
     }).trim();
     return token ?? null;
   } catch {
