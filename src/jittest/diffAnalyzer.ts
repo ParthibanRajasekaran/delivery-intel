@@ -79,9 +79,7 @@ export interface DiffAnalysis {
 // Matches:  diff --git a/some/path b/some/path
 const RE_DIFF_HEADER = /^diff --git a\/([^ ]+) b\/(.+)$/;
 
-// Matches:  new file mode 100644  |  deleted file mode 100644  |  rename from/to
-const RE_NEW_FILE = /^new file mode/;
-const RE_DELETED_FILE = /^deleted file mode/;
+// Matches:  rename from/to
 const RE_RENAME_FROM = /^rename from (.+)$/m;
 const RE_RENAME_TO = /^rename to (.+)$/m;
 
@@ -181,11 +179,11 @@ function flushFile(state: ParseState): void {
 
 /** Apply file-level metadata lines (new/deleted/rename). Returns true if handled. */
 function handleFileMetadata(line: string, current: ChangedFile): boolean {
-  if (RE_NEW_FILE.test(line)) {
+  if (line.startsWith("new file mode")) {
     current.isNew = true;
     return true;
   }
-  if (RE_DELETED_FILE.test(line)) {
+  if (line.startsWith("deleted file mode")) {
     current.isDeleted = true;
     return true;
   }
