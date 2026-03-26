@@ -99,11 +99,11 @@ const TYPE_COERCION_PATTERNS = [
 ];
 
 /** Patterns for return value changes. */
-const RETURN_VALUE_PATTERNS = [/^\s*return\s/m];
+const RETURN_VALUE_PATTERNS = [/^[ \t]*return[ \t]/m];
 
 /** Patterns for control flow changes. */
 const CONTROL_FLOW_PATTERNS = [
-  /^\s*(if|else|switch|case|break|continue|for|while)\b/m,
+  /^[ \t]*(if|else|switch|case|break|continue|for|while)\b/m,
   /\?[ \t]*[^:\n]{0,200}:/, // ternary
 ];
 

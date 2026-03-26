@@ -126,7 +126,7 @@ function ruleHasNonEmptyInvocation(testCode: string): { pass: boolean; reason: s
     /\b(?:describe|it|test|expect|import|from|require)[ \t]*\(/g,
     "__VITEST__(",
   );
-  const hasArgs = /\w+[ \t]*\([^)\n]{1,500}\)/.test(stripped);
+  const hasArgs = /\w{1,100}[ \t]*\([^)\n]{1,200}\)/.test(stripped);
   return {
     pass: hasArgs,
     reason: hasArgs

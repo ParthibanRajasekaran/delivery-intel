@@ -92,7 +92,7 @@ const RE_NEW_PATH = /^\+\+\+ (?:b\/)?(.+)$/;
 
 // Matches hunk header:
 //   @@ -oldStart[,oldCount] +newStart[,newCount] @@ [optional function context]
-const RE_HUNK_HEADER = /^@@ -(\d+)(?:,(\d+))? \+(\d+)(?:,(\d+))? @@\s*(.*)$/;
+const RE_HUNK_HEADER = /^@@ -(\d+)(?:,(\d+))? \+(\d+)(?:,(\d+))? @@[ \t]*([^\n]{0,300})$/;
 
 // Extract the function/method name from a hunk context label.
 // Handles:

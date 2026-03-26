@@ -98,7 +98,13 @@ export function getDiffFromGit(baseRef?: string, cwd: string = process.cwd()): s
     ? ["diff", `${baseRef}..HEAD`, "--unified=5"]
     : ["diff", "HEAD", "--unified=5"];
   try {
-    return execFileSync("git", args, { cwd, encoding: "utf8" });
+    // Restrict PATH to fixed system directories to prevent PATH-injection attacks (S4036)
+    const safePath = "/usr/local/bin:/usr/bin:/bin:/opt/homebrew/bin:/opt/local/bin";
+    return execFileSync("git", args, {
+      cwd,
+      encoding: "utf8",
+      env: { ...process.env, PATH: safePath },
+    });
   } catch (err) {
     throw new Error(
       `Failed to obtain git diff (command: "git ${args.join(" ")}"): ${(err as Error).message}`,
