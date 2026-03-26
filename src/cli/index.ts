@@ -32,13 +32,17 @@ import { execFileSync } from "node:child_process";
 
 function resolveTokenFromGHCli(): string | null {
   try {
-    // Restrict PATH to fixed system directories to prevent PATH-injection (S4036)
-    const safePath = "/usr/local/bin:/usr/bin:/bin:/opt/homebrew/bin:/opt/local/bin";
+    // Pass only HOME + a fixed PATH — do NOT spread process.env so user-controlled
+    // vars like LD_PRELOAD/DYLD_INSERT_LIBRARIES cannot hijack the binary (S4036).
+    const safeEnv = {
+      HOME: process.env.HOME,
+      PATH: "/usr/local/bin:/usr/bin:/bin:/opt/homebrew/bin:/opt/local/bin",
+    } as unknown as NodeJS.ProcessEnv;
     const token = execFileSync("gh", ["auth", "token"], {
       encoding: "utf-8",
       timeout: 5000,
       stdio: ["pipe", "pipe", "pipe"],
-      env: { ...process.env, PATH: safePath },
+      env: safeEnv,
     }).trim();
     return token ?? null;
   } catch {

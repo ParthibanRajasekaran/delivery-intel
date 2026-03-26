@@ -98,12 +98,16 @@ export function getDiffFromGit(baseRef?: string, cwd: string = process.cwd()): s
     ? ["diff", `${baseRef}..HEAD`, "--unified=5"]
     : ["diff", "HEAD", "--unified=5"];
   try {
-    // Restrict PATH to fixed system directories to prevent PATH-injection attacks (S4036)
-    const safePath = "/usr/local/bin:/usr/bin:/bin:/opt/homebrew/bin:/opt/local/bin";
+    // Pass only HOME + a fixed PATH — do NOT spread process.env so user-controlled
+    // vars like LD_PRELOAD/DYLD_INSERT_LIBRARIES cannot hijack the binary (S4036).
+    const safeEnv = {
+      HOME: process.env.HOME,
+      PATH: "/usr/local/bin:/usr/bin:/bin:/opt/homebrew/bin:/opt/local/bin",
+    } as unknown as NodeJS.ProcessEnv;
     return execFileSync("git", args, {
       cwd,
       encoding: "utf8",
-      env: { ...process.env, PATH: safePath },
+      env: safeEnv,
     });
   } catch (err) {
     throw new Error(
