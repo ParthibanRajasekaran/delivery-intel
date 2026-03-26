@@ -246,6 +246,19 @@ async function resolveNarrative(
 // Output handling
 // ---------------------------------------------------------------------------
 
+/** Writes serialised JSON to a file and/or stdout based on the active flags. */
+function emitJsonOutput(json: string, outputFile: string | null, jsonMode: boolean): void {
+  if (outputFile) {
+    fs.writeFileSync(outputFile, json, "utf-8");
+    if (!jsonMode) {
+      console.log("  " + green("✓") + " Report saved to " + bold(outputFile));
+    }
+  }
+  if (jsonMode) {
+    console.log(json);
+  }
+}
+
 function handleOutput(
   result: AnalysisResult,
   opts: {
@@ -262,16 +275,7 @@ function handleOutput(
       ...(opts.risk ? { riskScore: opts.risk } : {}),
       ...(opts.narrative ? { narrative: opts.narrative } : {}),
     };
-    const json = JSON.stringify(output, null, 2);
-    if (opts.outputFile) {
-      fs.writeFileSync(opts.outputFile, json, "utf-8");
-      if (!opts.jsonMode) {
-        console.log("  " + green("✓") + " Report saved to " + bold(opts.outputFile));
-      }
-    }
-    if (opts.jsonMode) {
-      console.log(json);
-    }
+    emitJsonOutput(JSON.stringify(output, null, 2), opts.outputFile, opts.jsonMode);
   } else {
     console.log(
       renderCyberReport(result, {
