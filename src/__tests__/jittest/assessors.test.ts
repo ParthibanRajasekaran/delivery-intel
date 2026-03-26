@@ -232,13 +232,20 @@ describe("aggregation utilities", () => {
   function makeAssessed(
     verdict: "candidate_catch" | "false_positive" | "needs_review",
   ): AssessedCatchingTest {
+    let confidence: number;
+    if (verdict === "candidate_catch") {
+      confidence = 0.9;
+    } else if (verdict === "false_positive") {
+      confidence = 0.05;
+    } else {
+      confidence = 0.45;
+    }
     return {
       test: makeCatchingTest({ id: `id_${verdict}` }),
       assessment: {
         testId: `id_${verdict}`,
         verdict,
-        confidence:
-          verdict === "candidate_catch" ? 0.9 : verdict === "false_positive" ? 0.05 : 0.45,
+        confidence,
         reasons: ["test reason"],
         producedBy: "rule_based",
       },
