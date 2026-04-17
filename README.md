@@ -8,6 +8,7 @@ Point it at any GitHub repo. Get DORA metrics, vulnerability scan, and a health 
 No setup. No tokens for public repos. Just run it.
 
 [![npm version](https://img.shields.io/npm/v/delivery-intel?color=cb3837&label=npm&logo=npm&logoColor=white)](https://www.npmjs.com/package/delivery-intel)
+[![npm downloads](https://img.shields.io/npm/dw/delivery-intel?color=cb3837&logo=npm&logoColor=white)](https://www.npmjs.com/package/delivery-intel)
 [![CI](https://img.shields.io/github/actions/workflow/status/ParthibanRajasekaran/delivery-intel/ci.yml?branch=main&label=CI&logo=githubactions&logoColor=white)](https://github.com/ParthibanRajasekaran/delivery-intel/actions/workflows/ci.yml)
 [![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
 [![TypeScript](https://img.shields.io/badge/TypeScript-5-3178c6?logo=typescript&logoColor=white)](https://www.typescriptlang.org)
@@ -19,38 +20,45 @@ No setup. No tokens for public repos. Just run it.
 
 ---
 
-## ⚡ 30-Second Demo
+## ⚡ Quick Start
 
 ```bash
 npx delivery-intel facebook/react
 ```
 
 ```
-  ┌─────────────────────────────────────────────────┐
-  │  📊 Delivery Intel - Software Delivery Intelligence  │
-  └─────────────────────────────────────────────────┘
+  ┌─────────────────────────────────────────────────────────┐
+  │  📡 Delivery Intel  — Cyber-Diagnostic Report 2026      │
+  └─────────────────────────────────────────────────────────┘
 
-  Repository:  facebook/react
-  Analyzed:    2026-02-18T12:00:00.000Z
+  Repository    facebook/react
+  Scanned       2026-04-17T12:00:00.000Z
 
-  Overall Health Score
-  ██████████████████████████░░░░ 87/100
+  ╭─────────────────────────────────────────────────────╮
+  │  ⬡  Overall Health Score                            │
+  │                                                     │
+  │  ██████████████████████████░░░░  87/100  EXCELLENT  │
+  ╰─────────────────────────────────────────────────────╯
 
-  DORA Metrics  ─────────────────────────────────────
+  ◈  DORA Metrics
+  ────────────────────────────────────────────────────────
 
-  Deploy Frequency  Elite
-  12.4 deployments/week  (source: merged PRs)
+  Deploy Frequency     ★ Elite
+  12.4 deployments/week  (merged PRs)
+  Last 7 days  ▃▄▅▆▇█▇
 
-  Lead Time  Elite
+  Lead Time            ★ Elite
   3.2 hours median  (0.1 days)
 
-  Change Failure Rate  High
-  4.8%  (2 failed / 42 total pipeline runs)
+  Change Failure Rate  ● High
+  4.8%  (2 failed / 42 total runs)
 
-  Vulnerability Scan  (OSV.dev)  ───────────────────
+  ◈  Vulnerability Scan  (OSV.dev)
+  ────────────────────────────────────────────────────────
   ✓ No known vulnerabilities found
 
-  Suggestions  ─────────────────────────────────────
+  ◈  Suggestions
+  ────────────────────────────────────────────────────────
   ✓ Looking good, no critical issues detected
 ```
 
@@ -65,21 +73,31 @@ npx delivery-intel facebook/react
 | **Deploy Frequency** | How often code ships to production | GitHub Deployments API → merged PRs fallback |
 | **Lead Time** | PR creation → merge (branch active duration) | Pull Requests API |
 | **Change Failure Rate** | % of CI pipeline runs that failed + raw counts | Workflow Runs API |
+| **Mean Time to Restore** | How fast you recover from a failed run | Workflow Runs API (failure → next success) |
 | **Vulnerabilities** | Known CVEs in your dependencies | [OSV.dev](https://osv.dev) (free, no auth) |
-| **Health Score** | Single 0–100 rollup of everything above | Weighted composite |
+| **Health Score** | Single 0–100 rollup of all DORA metrics | Weighted composite |
 | **Suggestions** | Prioritized, actionable recommendations | Heuristic engine |
 
 > Supports `package.json`, `requirements.txt`, and `go.mod` for vulnerability scanning.
 
 ---
 
-## 🚀 Quick Start
+## 🚀 Usage
 
 ### CLI (zero install)
 
 ```bash
-# Any public repo, no token needed
+# Any public repo — no token needed
 npx delivery-intel facebook/react
+
+# Compare last 30 days vs prior 30 days
+npx delivery-intel vercel/next.js --trend
+
+# Include burnout risk score
+npx delivery-intel vercel/next.js --risk
+
+# AI-powered executive narrative (requires LLM key — falls back to template)
+npx delivery-intel vercel/next.js --narrative
 
 # JSON output
 npx delivery-intel vercel/next.js --json
@@ -87,6 +105,20 @@ npx delivery-intel vercel/next.js --json
 # Save report to file
 npx delivery-intel vercel/next.js --json --output report.json
 ```
+
+### All flags
+
+| Flag | Description |
+|------|-------------|
+| `--json` | Output raw JSON instead of the formatted terminal report |
+| `--output <file>` | Write JSON to a file (can combine with `--json`) |
+| `--trend` | Show 30-day vs prior-30-day deltas for all metrics |
+| `--risk` | Include Burnout Risk Score (velocity + stability signal) |
+| `--narrative` | Generate an executive summary (LLM or template fallback) |
+| `--token <token>` | GitHub token — prefer `gh auth login` instead |
+| `--no-spinner` | Disable the scanning animation (useful in CI logs) |
+| `--version` | Print version |
+| `--help` | Show help |
 
 ### Web Dashboard
 
@@ -112,17 +144,71 @@ REPO=facebook/react docker compose run --rm cli
 
 ---
 
-## 🏅 Badge
+## 📦 JSON Output Schema
 
-Show your DORA health score in any README. Paste the snippet below and replace `owner/repo`:
+Pass `--json` (or `--json --output report.json`) to get machine-readable output.
 
-```markdown
-[![Delivery Score](https://your-deployment-url/api/badge?repo=owner/repo)](https://github.com/ParthibanRajasekaran/delivery-intel)
+```jsonc
+{
+  "repo": { "owner": "vercel", "repo": "next.js" },
+  "fetchedAt": "2026-04-17T12:00:00.000Z",
+  "overallScore": 87,                          // 0–100
+  "doraMetrics": {
+    "deploymentFrequency": {
+      "deploymentsPerWeek": 12.4,
+      "rating": "Elite",                       // Elite | High | Medium | Low
+      "source": "merged_prs_fallback"          // deployments_api | merged_prs_fallback
+    },
+    "leadTimeForChanges": {
+      "medianHours": 3.2,
+      "rating": "Elite"
+    },
+    "changeFailureRate": {
+      "percentage": 4.8,
+      "failedRuns": 2,
+      "totalRuns": 42,
+      "rating": "High"
+    }
+  },
+  "vulnerabilities": [
+    {
+      "packageName": "lodash",
+      "currentVersion": "4.17.15",
+      "vulnId": "GHSA-xxxx-xxxx-xxxx",
+      "summary": "Prototype pollution",
+      "severity": "high",                      // critical | high | medium | low
+      "aliases": ["CVE-2021-23337"],
+      "fixedVersion": "4.17.21"
+    }
+  ],
+  "suggestions": [
+    {
+      "category": "reliability",               // performance | reliability | security
+      "severity": "high",                      // high | medium | low
+      "title": "High Pipeline Failure Rate",
+      "description": "...",
+      "actionItems": ["..."]
+    }
+  ],
+  "dailyDeployments": [0, 1, 2, 3, 1, 2, 3], // last 7 days, index 0 = 6 days ago
+  // present only with --trend
+  "trend": {
+    "windowDays": 30,
+    "current":  { "deploymentsPerWeek": 12.4, "leadTimeHours": 3.2, "changeFailureRate": 4.8, "score": 87 },
+    "prior":    { "deploymentsPerWeek": 9.1,  "leadTimeHours": 5.6, "changeFailureRate": 6.2, "score": 78 },
+    "deltas":   { "deploymentsPerWeek": 3.3,  "leadTimeHours": -2.4, "changeFailureRate": -1.4, "score": 9 }
+  },
+  // present only with --risk
+  "riskScore": {
+    "score": 42,
+    "level": "moderate",                       // low | moderate | high | critical
+    "cycleTimeDelta": 0.12,
+    "failureRateDelta": -0.05,
+    "sentimentMultiplier": 1.0,
+    "summary": "..."
+  }
+}
 ```
-
-The badge endpoint (`GET /api/badge?repo=owner/repo`) returns a [Shields.io endpoint-badge](https://shields.io/badges/endpoint-badge) payload. Color scales from red (< 20) → orange → yellow → green → bright green (≥ 80). Results are cached for 5 minutes.
-
-> **Self-hosting**: deploy the dashboard (`npm run build && npm start` or Docker) and substitute `your-deployment-url` above.
 
 ---
 
@@ -165,7 +251,7 @@ jobs:
 
       - name: Check health score
         run: |
-          SCORE=$(jq '.score' report.json)
+          SCORE=$(jq '.overallScore' report.json)
           echo "Health score: $SCORE / 100"
           if (( $(echo "$SCORE < 40" | bc -l) )); then
             echo "::error::Score $SCORE is below threshold (40)"
@@ -173,7 +259,21 @@ jobs:
           fi
 ```
 
-> A ready-to-use workflow file is included at [.github/workflows/delivery-intel.yml](.github/workflows/delivery-intel.yml).
+> A ready-to-use workflow file with PR comments and artifact upload is included at [.github/workflows/delivery-intel.yml](.github/workflows/delivery-intel.yml).
+
+---
+
+## 🏅 Badge
+
+Once you have the dashboard deployed, you can show a live delivery score in any README:
+
+```markdown
+[![Delivery Score](https://your-deployment-url/api/badge?repo=owner/repo)](https://github.com/ParthibanRajasekaran/delivery-intel)
+```
+
+The `GET /api/badge?repo=owner/repo` endpoint returns a [Shields.io endpoint-badge](https://shields.io/badges/endpoint-badge) payload. Score maps to color: `< 20` red → `< 40` orange → `< 60` yellow → `< 80` green → `≥ 80` bright green. Results cached 5 minutes.
+
+> **Self-hosting**: deploy the dashboard (`npm run build && npm start` or `docker compose up dashboard`) and replace `your-deployment-url`.
 
 ---
 
@@ -183,8 +283,8 @@ jobs:
 ┌──────────────────────────────────────────────────────────────┐
 │                      delivery-intel                          │
 ├──────────────┬───────────────┬───────────────────────────────┤
-│   CLI        │   Dashboard   │   GitHub Action               │
-│  (npx)       │  (Next.js)    │   (workflow)                  │
+│   CLI        │   Dashboard   │   CI Workflow                 │
+│  (npx)       │  (Next.js)    │   (.github/workflows/)        │
 ├──────────────┴───────────────┴───────────────────────────────┤
 │                  Shared Analysis Engine                       │
 ├──────────┬────────────┬──────────────┬───────────────────────┤
