@@ -64,7 +64,7 @@ jobs:
 
       - name: Upload JITTest report artifact
         if: always()
-        uses: actions/upload-artifact@v6
+        uses: actions/upload-artifact@v7
         with:
           name: jittest-report
           path: jittest-report.json
@@ -135,7 +135,7 @@ jobs:
 
       - name: Upload JITTest coverage
         if: always()
-        uses: actions/upload-artifact@v6
+        uses: actions/upload-artifact@v7
         with:
           name: jittest-coverage
           path: coverage/
