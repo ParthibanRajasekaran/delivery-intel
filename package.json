@@ -89,7 +89,7 @@
     "react-dom": "^19.2.4",
     "react-is": "^19.2.4",
     "recharts": "^3.7.0",
-    "typescript": "^5.9.3",
+    "typescript": "^6.0.3",
     "@eslint/eslintrc": "^3.3.3",
     "@eslint/js": "^10.0.1",
     "@tailwindcss/postcss": "^4.2.0",
