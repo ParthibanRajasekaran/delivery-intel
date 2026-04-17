@@ -276,6 +276,21 @@ export function renderPRComment(
 }
 
 import { execFileSync } from "node:child_process";
+import { accessSync, constants } from "node:fs";
+
+/** Resolve gh CLI to an absolute path from known safe directories (S4036). */
+function resolveGhBinary(): string | undefined {
+  const candidates = ["/usr/bin/gh", "/usr/local/bin/gh", "/opt/homebrew/bin/gh"];
+  for (const p of candidates) {
+    try {
+      accessSync(p, constants.X_OK);
+      return p;
+    } catch {
+      // not found or not executable — try next
+    }
+  }
+  return undefined;
+}
 
 /** Post the PR comment via the gh CLI (best-effort, non-fatal). */
 export function postPRComment(body: string): void {
@@ -295,17 +310,15 @@ export function postPRComment(body: string): void {
     return; // Repo must be in owner/name format with safe characters
   }
 
+  const ghPath = resolveGhBinary();
+  if (!ghPath) {
+    return; // gh CLI not found in known safe directories
+  }
+
   try {
-    // Restrict PATH to fixed, unwriteable system directories (S4036)
-    // Preserves only the env vars gh CLI needs for authentication.
-    const safeEnv = {
-      ...process.env,
-      PATH: "/usr/local/bin:/usr/bin:/bin",
-    } satisfies NodeJS.ProcessEnv;
-    execFileSync("gh", ["pr", "comment", prNumber, "--body", body, "--repo", repo], {
+    execFileSync(ghPath, ["pr", "comment", prNumber, "--body", body, "--repo", repo], {
       stdio: "pipe",
       timeout: 15000,
-      env: safeEnv,
     });
   } catch {
     // Non-fatal — comment posting is best-effort
