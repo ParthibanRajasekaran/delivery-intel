@@ -57,6 +57,11 @@ import type { Scorecard } from "../domain/scorecard.js";
 import { generateFixPacks } from "../scoring/fixPackEngine.js";
 import type { FixPack } from "../scoring/fixPackEngine.js";
 
+// Forensics & verdict
+import { computeForensicSignals } from "../scoring/forensicEngine.js";
+import type { ForensicSignal, RepoVerdict } from "../domain/forensics.js";
+import { computeVerdict } from "../scoring/verdictEngine.js";
+
 // Types re-exported from the v1 analyzer for shared use
 import type { DependencyVulnerability, Suggestion } from "./analyzer.js";
 
@@ -84,6 +89,10 @@ export interface AnalysisResultV2 {
   dailyDeployments: number[];
   scorecard: Scorecard;
   fixPacks: FixPack[];
+  /** Higher-order forensic signals derived from evidence patterns. */
+  forensics: ForensicSignal[];
+  /** Categorical judgment: "fast-but-fragile", "exemplary", etc. */
+  verdict: RepoVerdict;
 }
 
 // ---------------------------------------------------------------------------
@@ -172,6 +181,12 @@ export async function analyzeV2(repoSlug: string, token?: string): Promise<Analy
   // 10. Concrete fix packs
   const fixPacks = generateFixPacks(metrics, vulnerabilities);
 
+  // 11. Forensic signals — higher-order patterns from evidence
+  const forensics = computeForensicSignals(events, metrics);
+
+  // 12. Repo verdict — categorical judgment
+  const verdict = computeVerdict(metrics, forensics, vulnerabilities);
+
   return {
     schemaVersion: 2,
     repo,
@@ -185,5 +200,7 @@ export async function analyzeV2(repoSlug: string, token?: string): Promise<Analy
     dailyDeployments,
     scorecard,
     fixPacks,
+    forensics,
+    verdict,
   };
 }

@@ -21,6 +21,8 @@ import { writeStepSummary } from "./stepSummary.js";
 import { computeRiskScore, type RiskBreakdown } from "./riskEngine.js";
 import { generateNarrativeSummary, generateFallbackNarrative } from "./narrativeSummary.js";
 import { evaluatePolicies, DEFAULT_THRESHOLDS } from "../domain/policy.js";
+import type { AnalysisMode } from "../domain/forensics.js";
+import { ANALYSIS_MODES } from "../domain/forensics.js";
 import chalk from "chalk";
 import * as fs from "node:fs";
 import { execFileSync } from "node:child_process";
@@ -92,7 +94,7 @@ const bold = chalk.bold.white;
 // Help & Version
 // ---------------------------------------------------------------------------
 
-const VERSION = "1.5.0";
+const VERSION = "1.7.0";
 
 function printHelp(): void {
   console.log(`
@@ -112,6 +114,7 @@ ${bold("EXAMPLES")}
 
 ${bold("OPTIONS")}
   ${chalk.hex("#ffbe0b")("--v2")}              ${bold("← New")} Use the evidence-driven v2 engine (grade, confidence, policy)
+  ${chalk.hex("#ffbe0b")("--mode <mode>")}     Analysis mode: oss, adopt, pr, exec, platform (implies --v2)
   ${chalk.hex("#ffbe0b")("--pr-comment")}      Post a guardrail comment (use with --v2 in GitHub Actions)
   ${chalk.hex("#ffbe0b")("--fail-below N")}    Exit code 2 if delivery score is below N (default: none)
   ${chalk.hex("#ffbe0b")("--block")}           Enable blocking violations (use with --v2 --fail-below)
@@ -169,6 +172,7 @@ interface CliArgs {
   outputFile: string | null;
   token: string | null;
   repo: string | null;
+  mode: AnalysisMode | null;
 }
 
 function parseCliArgs(argv: string[]): CliArgs {
@@ -177,13 +181,14 @@ function parseCliArgs(argv: string[]): CliArgs {
   const riskMode = argv.includes("--risk");
   const narrativeMode = argv.includes("--narrative");
   const trendMode = argv.includes("--trend");
-  const v2Mode = argv.includes("--v2");
+  let v2Mode = argv.includes("--v2");
   const prComment = argv.includes("--pr-comment");
   const blockingEnabled = argv.includes("--block");
   let outputFile: string | null = null;
   let token: string | null = null;
   let repo: string | null = null;
   let failBelow: number | null = null;
+  let mode: AnalysisMode | null = null;
 
   for (let i = 0; i < argv.length; i++) {
     if (argv[i] === "--output" && argv[i + 1]) {
@@ -197,6 +202,13 @@ function parseCliArgs(argv: string[]): CliArgs {
       const n = Number.parseInt(argv[i], 10);
       if (!Number.isNaN(n)) {
         failBelow = n;
+      }
+    } else if (argv[i] === "--mode" && argv[i + 1]) {
+      i++;
+      const candidate = argv[i] as string;
+      if (candidate in ANALYSIS_MODES) {
+        mode = candidate as AnalysisMode;
+        v2Mode = true; // --mode implies --v2
       }
     } else if (!argv[i].startsWith("--")) {
       repo = argv[i];
@@ -216,6 +228,7 @@ function parseCliArgs(argv: string[]): CliArgs {
     outputFile,
     token,
     repo,
+    mode,
   };
 }
 

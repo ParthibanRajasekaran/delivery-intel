@@ -146,6 +146,8 @@ export function renderVerdict(
     vulnerabilities,
     scorecard,
     fixPacks,
+    forensics,
+    verdict,
   } = result;
   const grade = toLetterGrade(scores.delivery.score);
   const gradeStr = gradeChalk(scores.delivery.score)(grade);
@@ -317,6 +319,55 @@ export function renderVerdict(
   } else {
     lines.push(section("SECURITY"));
     lines.push(bullet(green("✓"), "No known vulnerabilities found in scanned manifests"));
+  }
+
+  // ── Repo Verdict ──────────────────────────────────────────────────────────
+  const verdictColor =
+    verdict.category === "exemplary"
+      ? green
+      : verdict.category === "fast-but-fragile"
+        ? yellow
+        : verdict.category === "reliable-but-slow"
+          ? cyan
+          : verdict.category === "improving"
+            ? green
+            : verdict.category === "unstable"
+              ? red
+              : dim;
+  lines.push(section("VERDICT"));
+  lines.push(bullet(verdictColor("◈"), white(verdict.headline)));
+  lines.push(bullet("  ", dim(verdict.narrative)));
+  if (verdict.strengths.length > 0) {
+    lines.push("");
+    lines.push(bullet("  ", bold.white("Strengths:")));
+    for (const s of verdict.strengths) {
+      lines.push(bullet("  ", green(`  + ${s}`)));
+    }
+  }
+  if (verdict.risks.length > 0) {
+    lines.push(bullet("  ", bold.white("Risks:")));
+    for (const r of verdict.risks) {
+      lines.push(bullet("  ", red(`  − ${r}`)));
+    }
+  }
+  lines.push(bullet("  ", bold.white("First fix: ") + cyan(verdict.firstFix)));
+
+  // ── Forensic Signals ──────────────────────────────────────────────────────
+  if (forensics.length > 0) {
+    lines.push(section(`FORENSIC SIGNALS  (${forensics.length} detected)`));
+    for (const signal of forensics) {
+      const sigIcon =
+        signal.severity === "critical"
+          ? red("✖")
+          : signal.severity === "warning"
+            ? yellow("▲")
+            : dim("·");
+      const sigColor =
+        signal.severity === "critical" ? red : signal.severity === "warning" ? yellow : dim;
+      lines.push(bullet(sigIcon, white(signal.title)));
+      lines.push(bullet("  ", sigColor(signal.evidence)));
+      lines.push(bullet("  ", cyan(`→ ${signal.recommendation}`)));
+    }
   }
 
   // ── Scorecard gates ────────────────────────────────────────────────────────
