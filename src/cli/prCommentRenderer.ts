@@ -279,10 +279,20 @@ import { execFileSync } from "node:child_process";
 
 /** Post the PR comment via the gh CLI (best-effort, non-fatal). */
 export function postPRComment(body: string): void {
-  const prNumber = process.env.PR_NUMBER ?? process.env.GITHUB_PR_NUMBER;
-  const repo = process.env.GITHUB_REPOSITORY;
-  if (!prNumber || !repo) {
+  const prNumberRaw = process.env.PR_NUMBER ?? process.env.GITHUB_PR_NUMBER;
+  const repoRaw = process.env.GITHUB_REPOSITORY;
+  if (!prNumberRaw || !repoRaw) {
     return;
+  }
+
+  // Validate inputs before passing to execFileSync to prevent command injection
+  const prNumber = prNumberRaw.trim();
+  const repo = repoRaw.trim();
+  if (!/^\d+$/.test(prNumber)) {
+    return; // PR number must be a positive integer
+  }
+  if (!/^[A-Za-z0-9_.-]+\/[A-Za-z0-9_.-]+$/.test(repo)) {
+    return; // Repo must be in owner/name format with safe characters
   }
 
   try {
