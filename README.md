@@ -2,9 +2,9 @@
 
 # delivery-intel
 
-**Instant delivery health check for any GitHub repo.**
+**Evidence-driven repo intelligence for any GitHub repo.**
 
-*Tell me, with evidence, whether this repo ships well, fails safely, and is getting better or worse.*
+*The fastest way to determine whether a repo is safe to adopt, healthy to change, and disciplined enough to trust in CI.*
 
 [![npm version](https://img.shields.io/npm/v/delivery-intel?color=cb3837&label=npm&logo=npm&logoColor=white)](https://www.npmjs.com/package/delivery-intel)
 [![npm downloads](https://img.shields.io/npm/dw/delivery-intel?color=cb3837&logo=npm&logoColor=white)](https://www.npmjs.com/package/delivery-intel)
@@ -16,9 +16,9 @@
 </div>
 
 > delivery-intel answers three questions — with evidence, not guesses:
-> 1. **Does this repo ship well?** (deployment frequency, lead time)
-> 2. **Does it fail safely?** (change fail rate, recovery time, vulnerabilities)
-> 3. **Is it getting better or worse?** (30-day trend, score delta)
+> 1. **Does this repo ship well?** (deployment frequency, lead time, forensic signals)
+> 2. **Does it fail safely?** (change fail rate, recovery time, vulnerabilities, flaky pipelines)
+> 3. **Is it getting better or worse?** (30-day trend, verdict: exemplary / fast-but-fragile / unstable)
 >
 > Every metric shows its source, sample size, and confidence level. No fake precision.
 
@@ -27,10 +27,13 @@
 ## ⚡ Quick Start
 
 ```bash
-# Verdict mode — grade, confidence, policy, evidence (new in v1.5)
+# Verdict mode — grade, confidence, forensics, policy (v2 engine)
 npx delivery-intel facebook/react --v2
 
-# Classic metrics dump
+# Mode-specific analysis (implies --v2)
+npx delivery-intel facebook/react --mode adopt
+
+# Classic metrics dump (v1 engine)
 npx delivery-intel facebook/react
 ```
 
@@ -152,7 +155,8 @@ npx delivery-intel vercel/next.js --v2 --json --output report.json
 
 | Flag | Description |
 |------|-------------|
-| `--v2` | **New** — evidence-driven engine with grade, confidence, and policy |
+| `--v2` | Evidence-driven engine with grade, confidence, forensics, and policy |
+| `--mode <mode>` | Analysis mode: `oss`, `adopt`, `pr`, `exec`, `platform` (implies `--v2`) |
 | `--pr-comment` | Write a PR guardrail comment to `delivery-intel-pr-comment.md` (use with `--v2`) |
 | `--fail-below N` | Exit code 2 if delivery score is below N |
 | `--block` | Enable blocking violations (use with `--v2 --fail-below`) |
@@ -292,7 +296,7 @@ jobs:
   analyze:
     runs-on: ubuntu-latest
     steps:
-      - uses: ParthibanRajasekaran/delivery-intel@v1.5.0
+      - uses: ParthibanRajasekaran/delivery-intel@v1.6.0
         with:
           fail-below: '40'   # fail the job if score drops below 40
 ```
@@ -368,17 +372,24 @@ The `GET /api/badge?repo=owner/repo` endpoint returns a [Shields.io endpoint-bad
 ┌──────────────────────────────────────────────────────────────┐
 │                      delivery-intel                          │
 ├──────────────┬───────────────┬───────────────────────────────┤
-│   CLI        │   Dashboard   │   CI Workflow                 │
-│  (npx)       │  (Next.js)    │   (.github/workflows/)        │
+│   CLI        │   Dashboard   │   CI Workflow / Action        │
+│  (npx)       │  (Next.js)    │   (action.yml)                │
 ├──────────────┴───────────────┴───────────────────────────────┤
-│                  Shared Analysis Engine                       │
+│              Renderers (terminal, JSON, PR comment)           │
+├──────────────────────────────────────────────────────────────┤
+│          Verdict Engine  ·  Forensic Signal Engine            │
 ├──────────┬────────────┬──────────────┬───────────────────────┤
-│ GitHub   │ OSV.dev    │  Metrics     │  Suggestions          │
-│ REST API │ Vuln API   │  Engine      │  Engine               │
-│ GraphQL  │            │  (DORA)      │  (Heuristics)         │
+│ Scoring  │ Policies   │  Fix Packs   │  Recommendations      │
+│ (conf-   │ (gates,    │  (copy-paste │  (ranked actions)     │
+│  weighted)│  blocking) │   artifacts) │                       │
 ├──────────┴────────────┴──────────────┴───────────────────────┤
-│               Optional: Redis Cache (ioredis)                │
-└──────────────────────────────────────────────────────────────┘
+│  DORA Metrics (6) · Confidence · Evidence Sources · Caveats  │
+├──────────────────────────────────────────────────────────────┤
+│       Normaliser (raw API → typed EvidenceEvent stream)       │
+├──────────┬────────────┬──────────────────────────────────────┤
+│ GitHub   │ OSV.dev    │  Extractors (7 ecosystems)           │
+│ REST API │ Vuln API   │  npm·pip·Go·Poetry·pnpm·Cargo·Gems  │
+└──────────┴────────────┴──────────────────────────────────────┘
 ```
 
 ---
