@@ -49,16 +49,20 @@ runs:
       shell: bash
       env:
         GITHUB_TOKEN: ${{ inputs.token }}
+        DI_PR_COMMENT: ${{ inputs.pr-comment }}
+        DI_REPO: ${{ inputs.repo }}
+        DI_FLAGS: ${{ inputs.flags }}
+        DI_FAIL_BELOW: ${{ inputs.fail-below }}
       run: |
         PR_COMMENT_FLAG=""
-        if [ "${{ inputs.pr-comment }}" = "true" ]; then
+        if [ "$DI_PR_COMMENT" = "true" ]; then
           PR_COMMENT_FLAG="--pr-comment"
         fi
 
-        OUTPUT=$(npx --yes delivery-intel@latest "${{ inputs.repo }}" \
+        OUTPUT=$(npx --yes delivery-intel@latest "$DI_REPO" \
           --v2 --json --no-spinner \
           $PR_COMMENT_FLAG \
-          ${{ inputs.flags }} 2>/dev/null || true)
+          $DI_FLAGS 2>/dev/null || true)
 
         if [ -z "$OUTPUT" ]; then
           echo "::error::delivery-intel returned no output. Check the repo slug and token."
@@ -80,7 +84,7 @@ runs:
         echo "change-failure-rate=$CFR"   >> "$GITHUB_OUTPUT"
         echo "mean-time-to-restore=$MTTR" >> "$GITHUB_OUTPUT"
 
-        THRESHOLD="${{ inputs.fail-below }}"
+        THRESHOLD="$DI_FAIL_BELOW"
         if [ "$THRESHOLD" -gt 0 ] && [ -n "$SCORE" ] && [ "$(echo "$SCORE < $THRESHOLD" | bc -l)" = "1" ]; then
           echo "::error::Delivery score $SCORE is below the required threshold ($THRESHOLD)."
           exit 2
@@ -91,9 +95,11 @@ runs:
       shell: bash
       env:
         GH_TOKEN: ${{ inputs.token }}
+        DI_PR_NUMBER: ${{ github.event.pull_request.number }}
+        DI_REPO: ${{ github.repository }}
       run: |
         if [ -f delivery-intel-pr-comment.md ]; then
-          gh pr comment ${{ github.event.pull_request.number }} \
+          gh pr comment "$DI_PR_NUMBER" \
             --body-file delivery-intel-pr-comment.md \
-            --repo ${{ github.repository }}
+            --repo "$DI_REPO"
         fi

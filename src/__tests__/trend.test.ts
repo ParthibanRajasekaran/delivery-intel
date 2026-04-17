@@ -38,14 +38,17 @@ function daysAgo(n: number): string {
 // Fixture builders
 // ---------------------------------------------------------------------------
 
+let _nextId = 1;
+const nextId = () => _nextId++;
+
 function makeDeploy(daysBack: number) {
   const ts = daysAgo(daysBack);
-  return { id: Math.random(), created_at: ts, updated_at: ts };
+  return { id: nextId(), created_at: ts, updated_at: ts };
 }
 
 function makePR(createdDaysBack: number, mergedDaysBack: number) {
   return {
-    number: Math.random(),
+    number: nextId(),
     created_at: daysAgo(createdDaysBack),
     merged_at: daysAgo(mergedDaysBack),
   };
@@ -53,7 +56,7 @@ function makePR(createdDaysBack: number, mergedDaysBack: number) {
 
 function makeRun(daysBack: number, conclusion: string) {
   return {
-    id: Math.random(),
+    id: nextId(),
     status: "completed",
     conclusion,
     created_at: daysAgo(daysBack),

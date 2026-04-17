@@ -4,20 +4,60 @@ import type { ParsedDependency } from "../../shared/parsers.js";
 /** Parse Cargo.toml [dependencies] and [dev-dependencies] sections. */
 function parseCargoToml(raw: string): ParsedDependency[] {
   const deps: ParsedDependency[] = [];
-  const inDeps = /\[(dev-)?dependencies\]([\s\S]*?)(?=\n\[|$)/g;
-  let section: RegExpExecArray | null;
-  while ((section = inDeps.exec(raw)) !== null) {
-    const block = section[2];
-    // Simple "name = version" or 'name = { version = "..." }'
-    const lineRe = /^([A-Za-z0-9_-]+)\s*=\s*(?:"([^"]+)"|.*?version\s*=\s*"([^"]+)")/gm;
-    let m: RegExpExecArray | null;
-    while ((m = lineRe.exec(block)) !== null) {
-      const version = m[2] ?? m[3];
-      if (version) {
-        deps.push({ name: m[1], version, ecosystem: "crates.io" });
+  const lines = raw.split("\n");
+  let inDepSection = false;
+
+  for (const line of lines) {
+    const trimmed = line.trim();
+
+    // Section header
+    if (trimmed.startsWith("[") && trimmed.includes("]")) {
+      const header = trimmed.slice(1, trimmed.indexOf("]"));
+      inDepSection = header === "dependencies" || header === "dev-dependencies";
+      continue;
+    }
+
+    if (!inDepSection || !trimmed || trimmed.startsWith("#")) {
+      continue;
+    }
+
+    const eqIdx = trimmed.indexOf("=");
+    if (eqIdx === -1) {
+      continue;
+    }
+
+    const name = trimmed.slice(0, eqIdx).trim();
+    if (!/^[A-Za-z0-9_-]+$/.test(name)) {
+      continue;
+    }
+
+    const valuePart = trimmed.slice(eqIdx + 1).trim();
+
+    // Simple string: name = "1.0.0"
+    if (valuePart.startsWith('"')) {
+      const end = valuePart.indexOf('"', 1);
+      if (end > 1) {
+        deps.push({ name, version: valuePart.slice(1, end), ecosystem: "crates.io" });
+      }
+      continue;
+    }
+
+    // Inline table: name = { version = "1.0.0", ... }
+    const vIdx = valuePart.indexOf("version");
+    if (vIdx !== -1) {
+      const eqI = valuePart.indexOf("=", vIdx + 7);
+      if (eqI !== -1) {
+        const rest = valuePart.slice(eqI + 1).trim();
+        if (rest.startsWith('"')) {
+          const end = rest.indexOf('"', 1);
+          if (end > 1) {
+            deps.push({ name, version: rest.slice(1, end), ecosystem: "crates.io" });
+          }
+        }
       }
     }
   }
+
   return deps;
 }
 
