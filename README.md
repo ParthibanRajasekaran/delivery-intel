@@ -16,7 +16,18 @@ No setup. No tokens for public repos. Just run it.
 
 </div>
 
-> **DORA research** (Google, [Oct 2024](https://cloud.google.com/blog/products/devops-sre/announcing-the-2024-dora-report)) shows elite engineering teams deploy **973× more often** and restore service **6,570× faster** than low performers — and these four metrics predict it. delivery-intel tells you exactly where your team stands, in one command.
+> ### Why DORA metrics matter
+>
+> Google's [2024 DORA Report](https://cloud.google.com/blog/products/devops-sre/announcing-the-2024-dora-report) (32,000+ respondents, 10 years of data) quantifies the gap between elite and low-performing engineering teams:
+>
+> | Metric | Elite teams | Low performers | Gap |
+> |--------|------------|----------------|-----|
+> | **Deploy Frequency** | On-demand (multiple/day) | < once per 6 months | **973×** |
+> | **Lead Time for Changes** | < 1 hour | 1 – 6 months | **6,570×** |
+> | **Change Failure Rate** | 0–15% | 46–60% | — |
+> | **Time to Restore** | < 1 hour | 1 week – 1 month | **6,570×** |
+>
+> Elite teams are **2× more likely to meet reliability targets** and **1.8× more likely to meet business goals** (DORA 2024). delivery-intel tells you exactly where your team stands — in one command.
 
 ---
 
@@ -229,7 +240,9 @@ Token resolution order: `--token` flag → `GITHUB_TOKEN` env → `gh auth token
 
 ## 🔄 CI Integration
 
-Add delivery-intel as a quality gate in your pipeline:
+### GitHub Actions Marketplace action
+
+The easiest way — use the action directly from the Marketplace:
 
 ```yaml
 # .github/workflows/delivery-intel.yml
@@ -243,6 +256,17 @@ on:
 jobs:
   analyze:
     runs-on: ubuntu-latest
+    steps:
+      - uses: ParthibanRajasekaran/delivery-intel@main
+        with:
+          fail-below: '40'   # fail the job if score drops below 40
+```
+
+Outputs available after the step: `score`, `deploy-frequency`, `lead-time`, `change-failure-rate`, `mean-time-to-restore`.
+
+### npx (custom pipeline)
+
+```yaml
     steps:
       - name: Run delivery-intel
         env:

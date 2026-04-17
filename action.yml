@@ -1,0 +1,80 @@
+name: "delivery-intel"
+description: "DORA metrics, vulnerability scan, and delivery health score for any GitHub repo. One command, no setup."
+author: "ParthibanRajasekaran"
+
+branding:
+  icon: "activity"
+  color: "blue"
+
+inputs:
+  repo:
+    description: "Repository to analyse in owner/repo format. Defaults to the current repository."
+    required: false
+    default: ${{ github.repository }}
+  token:
+    description: "GitHub token for API access. Defaults to the workflow GITHUB_TOKEN."
+    required: false
+    default: ${{ github.token }}
+  fail-below:
+    description: "Exit with code 2 if the overall health score is below this value (0–100). Set to 0 to disable."
+    required: false
+    default: "40"
+  flags:
+    description: 'Additional CLI flags to pass (e.g. "--trend --risk --json --output report.json").'
+    required: false
+    default: ""
+
+outputs:
+  score:
+    description: "Overall delivery health score (0–100)."
+  deploy-frequency:
+    description: "Deploy frequency tier: Elite | High | Medium | Low."
+  lead-time:
+    description: "Lead time tier: Elite | High | Medium | Low."
+  change-failure-rate:
+    description: "Change failure rate tier: Elite | High | Medium | Low."
+  mean-time-to-restore:
+    description: "Mean time to restore tier: Elite | High | Medium | Low."
+
+runs:
+  using: "composite"
+  steps:
+    - name: Run delivery-intel
+      shell: bash
+      env:
+        GITHUB_TOKEN: ${{ inputs.token }}
+      run: |
+        OUTPUT=$(npx --yes delivery-intel@latest "${{ inputs.repo }}" --json ${{ inputs.flags }} 2>/dev/null || true)
+
+        if [ -z "$OUTPUT" ]; then
+          echo "::error::delivery-intel returned no output. Check the repo slug and token."
+          exit 1
+        fi
+
+        SCORE=$(echo "$OUTPUT" | jq -r '.overallScore // empty')
+        DEPLOY=$(echo "$OUTPUT" | jq -r '.doraMetrics.deployFrequency.tier // empty')
+        LEAD=$(echo "$OUTPUT"   | jq -r '.doraMetrics.leadTime.tier // empty')
+        CFR=$(echo "$OUTPUT"    | jq -r '.doraMetrics.changeFailureRate.tier // empty')
+        MTTR=$(echo "$OUTPUT"   | jq -r '.doraMetrics.meanTimeToRestore.tier // empty')
+
+        echo "score=$SCORE"               >> "$GITHUB_OUTPUT"
+        echo "deploy-frequency=$DEPLOY"   >> "$GITHUB_OUTPUT"
+        echo "lead-time=$LEAD"            >> "$GITHUB_OUTPUT"
+        echo "change-failure-rate=$CFR"   >> "$GITHUB_OUTPUT"
+        echo "mean-time-to-restore=$MTTR" >> "$GITHUB_OUTPUT"
+
+        echo "## Delivery Intelligence Report" >> "$GITHUB_STEP_SUMMARY"
+        echo "" >> "$GITHUB_STEP_SUMMARY"
+        echo "| Metric | Tier |" >> "$GITHUB_STEP_SUMMARY"
+        echo "|--------|------|" >> "$GITHUB_STEP_SUMMARY"
+        echo "| Overall Score | **$SCORE / 100** |" >> "$GITHUB_STEP_SUMMARY"
+        echo "| Deploy Frequency | $DEPLOY |" >> "$GITHUB_STEP_SUMMARY"
+        echo "| Lead Time | $LEAD |" >> "$GITHUB_STEP_SUMMARY"
+        echo "| Change Failure Rate | $CFR |" >> "$GITHUB_STEP_SUMMARY"
+        echo "| Mean Time to Restore | $MTTR |" >> "$GITHUB_STEP_SUMMARY"
+
+        THRESHOLD="${{ inputs.fail-below }}"
+        if [ "$THRESHOLD" -gt 0 ] && [ -n "$SCORE" ] && [ "$SCORE" -lt "$THRESHOLD" ]; then
+          echo "::error::Health score $SCORE is below the required threshold ($THRESHOLD)."
+          exit 2
+        fi
