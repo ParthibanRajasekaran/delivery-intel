@@ -109,6 +109,7 @@ ${bold("OPTIONS")}
   ${chalk.hex("#ffbe0b")("--output <file>")}   Write JSON output to a file
   ${chalk.hex("#ffbe0b")("--token <token>")}   GitHub token (not recommended — prefer gh auth)
   ${chalk.hex("#ffbe0b")("--no-spinner")}      Disable the scanning animation
+  ${chalk.hex("#ffbe0b")("--trend")}           Compare last 30 days vs prior 30 days (score deltas)
   ${chalk.hex("#ffbe0b")("--risk")}            Include Burnout Risk Score analysis
   ${chalk.hex("#ffbe0b")("--narrative")}       Generate executive narrative summary (LLM or fallback)
   ${chalk.hex("#ffbe0b")("--help")}            Show this help message
@@ -151,6 +152,7 @@ interface CliArgs {
   noSpinner: boolean;
   riskMode: boolean;
   narrativeMode: boolean;
+  trendMode: boolean;
   outputFile: string | null;
   token: string | null;
   repo: string | null;
@@ -161,6 +163,7 @@ function parseCliArgs(argv: string[]): CliArgs {
   const noSpinner = argv.includes("--no-spinner");
   const riskMode = argv.includes("--risk");
   const narrativeMode = argv.includes("--narrative");
+  const trendMode = argv.includes("--trend");
   let outputFile: string | null = null;
   let token: string | null = null;
   let repo: string | null = null;
@@ -177,7 +180,7 @@ function parseCliArgs(argv: string[]): CliArgs {
     }
   }
 
-  return { jsonMode, noSpinner, riskMode, narrativeMode, outputFile, token, repo };
+  return { jsonMode, noSpinner, riskMode, narrativeMode, trendMode, outputFile, token, repo };
 }
 
 // ---------------------------------------------------------------------------
@@ -326,7 +329,7 @@ async function main(): Promise<void> {
   }
 
   try {
-    const analysisTask = analyze(cli.repo, token ?? undefined);
+    const analysisTask = analyze(cli.repo, token ?? undefined, { withTrend: cli.trendMode });
     const result =
       !cli.jsonMode && !cli.noSpinner ? await withScanSequence(analysisTask) : await analysisTask;
 

@@ -12,6 +12,7 @@ import type {
   DORAMetrics,
   DependencyVulnerability,
   Suggestion,
+  TrendData,
 } from "./analyzer.js";
 import type { RiskBreakdown } from "./riskEngine.js";
 
@@ -380,6 +381,65 @@ function renderNarrative(narrative: string, model: string): string {
   return lines.join("\n");
 }
 
+// ---------------------------------------------------------------------------
+// Trend section
+// ---------------------------------------------------------------------------
+
+function trendArrow(delta: number, lowerIsBetter: boolean): string {
+  if (delta === 0) {
+    return dim("→");
+  }
+  const improving = lowerIsBetter ? delta < 0 : delta > 0;
+  const arrow = delta > 0 ? "↑" : "↓";
+  const sign = delta > 0 ? "+" : "";
+  return improving ? green(`${arrow} ${sign}${delta}`) : red(`${arrow} ${sign}${delta}`);
+}
+
+function renderTrend(trend: TrendData): string {
+  const lines: string[] = [];
+  const sep = dim("─".repeat(56));
+  const label = dim(`last ${trend.windowDays}d vs prior ${trend.windowDays}d`);
+
+  lines.push("  " + cyan.bold("◈  Trend") + "  " + label, "  " + sep, "");
+
+  const pad = (s: string, n: number) => s + " ".repeat(Math.max(0, n - s.length));
+
+  lines.push(
+    "  " +
+      pad(dim("Deploy Frequency"), 22) +
+      dim(`${trend.prior.deploymentsPerWeek}`) +
+      dim(" → ") +
+      bold(`${trend.current.deploymentsPerWeek}`) +
+      dim("/wk   ") +
+      trendArrow(trend.deltas.deploymentsPerWeek, false),
+    "  " +
+      pad(dim("Lead Time"), 22) +
+      dim(`${trend.prior.leadTimeHours}h`) +
+      dim(" → ") +
+      bold(`${trend.current.leadTimeHours}h`) +
+      dim("   ") +
+      trendArrow(trend.deltas.leadTimeHours, true),
+    "  " +
+      pad(dim("Failure Rate"), 22) +
+      dim(`${trend.prior.changeFailureRate}%`) +
+      dim(" → ") +
+      bold(`${trend.current.changeFailureRate}%`) +
+      dim("   ") +
+      trendArrow(trend.deltas.changeFailureRate, true),
+    "",
+    "  " +
+      pad(dim("Score"), 22) +
+      dim(`${trend.prior.score}`) +
+      dim(" → ") +
+      bold(`${trend.current.score}`) +
+      dim("/100   ") +
+      trendArrow(trend.deltas.score, false),
+    "",
+  );
+
+  return lines.join("\n");
+}
+
 function renderFooter(): string {
   return (
     dim("  ─".repeat(19)) +
@@ -419,6 +479,9 @@ export function renderCyberReport(
     renderHealthScore(result.overallScore),
     renderDORA(result.doraMetrics, result.dailyDeployments),
   );
+  if (result.trend) {
+    parts.push(renderTrend(result.trend));
+  }
   if (options.risk) {
     parts.push(renderRiskScore(options.risk));
   }

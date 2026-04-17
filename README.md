@@ -15,6 +15,8 @@ No setup. No tokens for public repos. Just run it.
 
 </div>
 
+> **DORA research** (Google, [Oct 2024](https://cloud.google.com/blog/products/devops-sre/announcing-the-2024-dora-report)) shows elite engineering teams deploy **973× more often** and restore service **6,570× faster** than low performers — and these four metrics predict it. delivery-intel tells you exactly where your team stands, in one command.
+
 ---
 
 ## ⚡ 30-Second Demo
@@ -107,6 +109,20 @@ docker compose up dashboard
 # CLI
 REPO=facebook/react docker compose run --rm cli
 ```
+
+---
+
+## 🏅 Badge
+
+Show your DORA health score in any README. Paste the snippet below and replace `owner/repo`:
+
+```markdown
+[![Delivery Score](https://your-deployment-url/api/badge?repo=owner/repo)](https://github.com/ParthibanRajasekaran/delivery-intel)
+```
+
+The badge endpoint (`GET /api/badge?repo=owner/repo`) returns a [Shields.io endpoint-badge](https://shields.io/badges/endpoint-badge) payload. Color scales from red (< 20) → orange → yellow → green → bright green (≥ 80). Results are cached for 5 minutes.
+
+> **Self-hosting**: deploy the dashboard (`npm run build && npm start` or Docker) and substitute `your-deployment-url` above.
 
 ---
 
