@@ -12,11 +12,15 @@
 
 import { analyze } from "./analyzer.js";
 import type { AnalysisResult } from "./analyzer.js";
+import { analyzeV2 } from "./analyzerV2.js";
 import { renderCyberReport } from "./cyberRenderer.js";
+import { renderVerdict } from "./verdictRenderer.js";
+import { renderPRComment } from "./prCommentRenderer.js";
 import { withScanSequence } from "./scanSequence.js";
 import { writeStepSummary } from "./stepSummary.js";
 import { computeRiskScore, type RiskBreakdown } from "./riskEngine.js";
 import { generateNarrativeSummary, generateFallbackNarrative } from "./narrativeSummary.js";
+import { evaluatePolicies, DEFAULT_THRESHOLDS } from "../domain/policy.js";
 import chalk from "chalk";
 import * as fs from "node:fs";
 import { execFileSync } from "node:child_process";
@@ -88,29 +92,35 @@ const bold = chalk.bold.white;
 // Help & Version
 // ---------------------------------------------------------------------------
 
-const VERSION = "1.4.0";
+const VERSION = "1.5.0";
 
 function printHelp(): void {
   console.log(`
-${bold("delivery-intel")} ${dim(`v${VERSION}`)}  ${cyan("— Cyber-Diagnostic Edition")}
-${dim("Software Delivery Intelligence for any GitHub repository")}
+${bold("delivery-intel")} ${dim(`v${VERSION}`)}
+${cyan("Instant delivery health check for any GitHub repo.")}
+${dim("Tell me, with evidence, whether this repo ships well, fails safely, and is getting better.")}
 
 ${bold("USAGE")}
   ${cyan("npx delivery-intel")} <owner/repo> [options]
 
 ${bold("EXAMPLES")}
-  ${cyan("npx delivery-intel")} vercel/next.js
-  ${cyan("npx delivery-intel")} https://github.com/facebook/react
-  ${cyan("npx delivery-intel")} vercel/next.js ${dim("--json")}
+  ${cyan("npx delivery-intel")} vercel/next.js                   ${dim("# evidence-backed health verdict")}
+  ${cyan("npx delivery-intel")} vercel/next.js ${dim("--v2")}              ${dim("# v2 engine: grade + confidence + policy")}
+  ${cyan("npx delivery-intel")} vercel/next.js ${dim("--v2 --pr-comment")} ${dim("# PR guardrail comment")}
+  ${cyan("npx delivery-intel")} vercel/next.js ${dim("--json")}            ${dim("# raw JSON output")}
   ${cyan("npx delivery-intel")} vercel/next.js ${dim("--risk --narrative")}
 
 ${bold("OPTIONS")}
+  ${chalk.hex("#ffbe0b")("--v2")}              ${bold("← New")} Use the evidence-driven v2 engine (grade, confidence, policy)
+  ${chalk.hex("#ffbe0b")("--pr-comment")}      Post a guardrail comment (use with --v2 in GitHub Actions)
+  ${chalk.hex("#ffbe0b")("--fail-below N")}    Exit code 2 if delivery score is below N (default: none)
+  ${chalk.hex("#ffbe0b")("--block")}           Enable blocking violations (use with --v2 --fail-below)
   ${chalk.hex("#ffbe0b")("--json")}            Output raw JSON instead of formatted report
   ${chalk.hex("#ffbe0b")("--output <file>")}   Write JSON output to a file
   ${chalk.hex("#ffbe0b")("--token <token>")}   GitHub token (not recommended — prefer gh auth)
   ${chalk.hex("#ffbe0b")("--no-spinner")}      Disable the scanning animation
   ${chalk.hex("#ffbe0b")("--trend")}           Compare last 30 days vs prior 30 days (score deltas)
-  ${chalk.hex("#ffbe0b")("--risk")}            Include Burnout Risk Score analysis
+  ${chalk.hex("#ffbe0b")("--risk")}            Include workflow strain analysis
   ${chalk.hex("#ffbe0b")("--narrative")}       Generate executive narrative summary (LLM or fallback)
   ${chalk.hex("#ffbe0b")("--help")}            Show this help message
   ${chalk.hex("#ffbe0b")("--version")}         Show version number
@@ -127,17 +137,16 @@ ${bold("LLM NARRATIVE")} ${dim("(env vars for AI-powered summary)")}
   ${chalk.hex("#ffbe0b")("DELIVERY_INTEL_LLM_MODEL")}      Model name (default: gpt-4o-mini)
   ${dim("Without an API key, --narrative uses a template-based fallback.")}
 
-${bold("CI / GITHUB ACTIONS")}
-  The built-in $GITHUB_TOKEN is auto-scoped and expires per job:
-  ${dim("npx delivery-intel ${{ github.repository }} --token ${{ secrets.GITHUB_TOKEN }}")}
-  ${dim("A rich SVG health-score ring is automatically appended to Step Summary.")}
-
 ${bold("WHAT IT MEASURES")}
-  ${bold("Deploy Frequency")}     How often code ships to production
-  ${bold("Lead Time")}            PR creation → merge (branch active duration)
-  ${bold("Change Failure Rate")}  % of deployment pipeline runs that failed
-  ${bold("Burnout Risk")}         Predictive team strain from velocity/stability deltas
-  ${bold("Vulnerabilities")}      OSV.dev scan of dependency manifests
+  ${bold("Deploy Frequency")}       How often code ships to production
+  ${bold("Change Lead Time")}       Commit → production (or PR open → merge as fallback)
+  ${bold("Change Fail Rate")}       % of deployments that required rollback or recovery
+  ${bold("Recovery Time")}          Time from failed deployment to successful recovery
+  ${bold("Pipeline Failure Rate")}  CI workflow run reliability (separate from change fail rate)
+  ${bold("Workflow Strain")}        Velocity and stability deltas — signals of delivery pressure
+  ${bold("Vulnerabilities")}        OSV.dev batch scan across 7 manifest ecosystems
+
+  Every metric shows: source · sample size · lookback window · confidence level
 `);
 }
 
@@ -153,6 +162,10 @@ interface CliArgs {
   riskMode: boolean;
   narrativeMode: boolean;
   trendMode: boolean;
+  v2Mode: boolean;
+  prComment: boolean;
+  blockingEnabled: boolean;
+  failBelow: number | null;
   outputFile: string | null;
   token: string | null;
   repo: string | null;
@@ -164,9 +177,13 @@ function parseCliArgs(argv: string[]): CliArgs {
   const riskMode = argv.includes("--risk");
   const narrativeMode = argv.includes("--narrative");
   const trendMode = argv.includes("--trend");
+  const v2Mode = argv.includes("--v2");
+  const prComment = argv.includes("--pr-comment");
+  const blockingEnabled = argv.includes("--block");
   let outputFile: string | null = null;
   let token: string | null = null;
   let repo: string | null = null;
+  let failBelow: number | null = null;
 
   for (let i = 0; i < argv.length; i++) {
     if (argv[i] === "--output" && argv[i + 1]) {
@@ -175,12 +192,31 @@ function parseCliArgs(argv: string[]): CliArgs {
     } else if (argv[i] === "--token" && i + 1 < argv.length) {
       i++;
       token = argv[i] ?? null;
+    } else if (argv[i] === "--fail-below" && argv[i + 1]) {
+      i++;
+      const n = parseInt(argv[i], 10);
+      if (!isNaN(n)) {
+        failBelow = n;
+      }
     } else if (!argv[i].startsWith("--")) {
       repo = argv[i];
     }
   }
 
-  return { jsonMode, noSpinner, riskMode, narrativeMode, trendMode, outputFile, token, repo };
+  return {
+    jsonMode,
+    noSpinner,
+    riskMode,
+    narrativeMode,
+    trendMode,
+    v2Mode,
+    prComment,
+    blockingEnabled,
+    failBelow,
+    outputFile,
+    token,
+    repo,
+  };
 }
 
 // ---------------------------------------------------------------------------
@@ -329,6 +365,62 @@ async function main(): Promise<void> {
   }
 
   try {
+    // ── v2 path ──────────────────────────────────────────────────────────────
+    if (cli.v2Mode) {
+      const v2Task = analyzeV2(cli.repo, token ?? undefined);
+      const result =
+        !cli.jsonMode && !cli.noSpinner ? await withScanSequence(v2Task) : await v2Task;
+
+      // Apply policy thresholds — blockBelowScore if --fail-below is set
+      const thresholds = {
+        ...DEFAULT_THRESHOLDS,
+        ...(cli.failBelow !== null ? { blockBelowScore: cli.failBelow } : {}),
+      };
+      const policy = evaluatePolicies(
+        result.metrics,
+        result.vulnerabilities,
+        result.scores.delivery,
+        thresholds,
+        cli.blockingEnabled,
+      );
+
+      if (cli.jsonMode || cli.outputFile) {
+        const json = JSON.stringify({ ...result, policy }, null, 2);
+        if (cli.outputFile) {
+          fs.writeFileSync(cli.outputFile, json, "utf-8");
+        }
+        if (cli.jsonMode) {
+          console.log(json);
+        }
+      } else {
+        console.log(renderVerdict(result, policy));
+      }
+
+      // PR comment — write to a file and optionally post via gh CLI
+      if (cli.prComment || process.env.GITHUB_ACTIONS) {
+        const comment = renderPRComment(result, policy);
+        if (process.env.GITHUB_STEP_SUMMARY) {
+          fs.appendFileSync(process.env.GITHUB_STEP_SUMMARY, comment + "\n");
+        }
+        if (cli.prComment) {
+          // Write to a file so the workflow can post it via gh pr comment
+          fs.writeFileSync("delivery-intel-pr-comment.md", comment, "utf-8");
+          if (!cli.jsonMode) {
+            console.log("  " + green("✓") + " PR comment saved to delivery-intel-pr-comment.md");
+          }
+        }
+      }
+
+      if (policy.shouldBlock) {
+        process.exit(2);
+      }
+      if (cli.failBelow !== null && result.scores.delivery.score < cli.failBelow) {
+        process.exit(2);
+      }
+      return;
+    }
+
+    // ── v1 path (unchanged) ──────────────────────────────────────────────────
     const analysisTask = analyze(cli.repo, token ?? undefined, { withTrend: cli.trendMode });
     const result =
       !cli.jsonMode && !cli.noSpinner ? await withScanSequence(analysisTask) : await analysisTask;

@@ -1,5 +1,5 @@
 name: "delivery-intel"
-description: "DORA metrics, vulnerability scan, and delivery health score for any GitHub repo. One command, no setup."
+description: "Instant delivery health check for any GitHub repo. Grade, evidence, and PR guardrail in one action."
 author: "ParthibanRajasekaran"
 
 branding:
@@ -16,17 +16,23 @@ inputs:
     required: false
     default: ${{ github.token }}
   fail-below:
-    description: "Exit with code 2 if the overall health score is below this value (0–100). Set to 0 to disable."
+    description: "Exit with code 2 if the delivery score is below this value (0–100). Set to 0 to disable."
     required: false
     default: "40"
+  pr-comment:
+    description: "Write a policy-aware PR comment via gh CLI when running on a pull_request event."
+    required: false
+    default: "false"
   flags:
-    description: 'Additional CLI flags to pass (e.g. "--trend --risk --json --output report.json").'
+    description: 'Additional CLI flags to pass (e.g. "--trend --risk --json"). The --v2 flag is always included.'
     required: false
     default: ""
 
 outputs:
   score:
     description: "Overall delivery health score (0–100)."
+  grade:
+    description: "Letter grade (A+, A, A-, B+, B, B-, C+, C, C-, D, F)."
   deploy-frequency:
     description: "Deploy frequency tier: Elite | High | Medium | Low."
   lead-time:
@@ -39,42 +45,55 @@ outputs:
 runs:
   using: "composite"
   steps:
-    - name: Run delivery-intel
+    - name: Run delivery-intel (v2 engine)
       shell: bash
       env:
         GITHUB_TOKEN: ${{ inputs.token }}
       run: |
-        OUTPUT=$(npx --yes delivery-intel@latest "${{ inputs.repo }}" --json ${{ inputs.flags }} 2>/dev/null || true)
+        PR_COMMENT_FLAG=""
+        if [ "${{ inputs.pr-comment }}" = "true" ]; then
+          PR_COMMENT_FLAG="--pr-comment"
+        fi
+
+        OUTPUT=$(npx --yes delivery-intel@latest "${{ inputs.repo }}" \
+          --v2 --json --no-spinner \
+          $PR_COMMENT_FLAG \
+          ${{ inputs.flags }} 2>/dev/null || true)
 
         if [ -z "$OUTPUT" ]; then
           echo "::error::delivery-intel returned no output. Check the repo slug and token."
           exit 1
         fi
 
-        SCORE=$(echo "$OUTPUT" | jq -r '.overallScore // empty')
-        DEPLOY=$(echo "$OUTPUT" | jq -r '.doraMetrics.deployFrequency.tier // empty')
-        LEAD=$(echo "$OUTPUT"   | jq -r '.doraMetrics.leadTime.tier // empty')
-        CFR=$(echo "$OUTPUT"    | jq -r '.doraMetrics.changeFailureRate.tier // empty')
-        MTTR=$(echo "$OUTPUT"   | jq -r '.doraMetrics.meanTimeToRestore.tier // empty')
+        # v2 JSON shape: .scores.delivery.score
+        SCORE=$(echo "$OUTPUT" | jq -r '.scores.delivery.score // .overallScore // empty')
+        GRADE=$(echo "$OUTPUT" | jq -r '.policy.grade // empty')
+        DEPLOY=$(echo "$OUTPUT" | jq -r '.metrics.deploymentFrequency.tier // empty')
+        LEAD=$(echo "$OUTPUT"   | jq -r '.metrics.changeLeadTime.tier // empty')
+        CFR=$(echo "$OUTPUT"    | jq -r '.metrics.changeFailRate.tier // empty')
+        MTTR=$(echo "$OUTPUT"   | jq -r '.metrics.failedDeploymentRecoveryTime.tier // empty')
 
         echo "score=$SCORE"               >> "$GITHUB_OUTPUT"
+        echo "grade=$GRADE"               >> "$GITHUB_OUTPUT"
         echo "deploy-frequency=$DEPLOY"   >> "$GITHUB_OUTPUT"
         echo "lead-time=$LEAD"            >> "$GITHUB_OUTPUT"
         echo "change-failure-rate=$CFR"   >> "$GITHUB_OUTPUT"
         echo "mean-time-to-restore=$MTTR" >> "$GITHUB_OUTPUT"
 
-        echo "## Delivery Intelligence Report" >> "$GITHUB_STEP_SUMMARY"
-        echo "" >> "$GITHUB_STEP_SUMMARY"
-        echo "| Metric | Tier |" >> "$GITHUB_STEP_SUMMARY"
-        echo "|--------|------|" >> "$GITHUB_STEP_SUMMARY"
-        echo "| Overall Score | **$SCORE / 100** |" >> "$GITHUB_STEP_SUMMARY"
-        echo "| Deploy Frequency | $DEPLOY |" >> "$GITHUB_STEP_SUMMARY"
-        echo "| Lead Time | $LEAD |" >> "$GITHUB_STEP_SUMMARY"
-        echo "| Change Failure Rate | $CFR |" >> "$GITHUB_STEP_SUMMARY"
-        echo "| Mean Time to Restore | $MTTR |" >> "$GITHUB_STEP_SUMMARY"
-
         THRESHOLD="${{ inputs.fail-below }}"
-        if [ "$THRESHOLD" -gt 0 ] && [ -n "$SCORE" ] && [ "$SCORE" -lt "$THRESHOLD" ]; then
-          echo "::error::Health score $SCORE is below the required threshold ($THRESHOLD)."
+        if [ "$THRESHOLD" -gt 0 ] && [ -n "$SCORE" ] && [ "$(echo "$SCORE < $THRESHOLD" | bc -l)" = "1" ]; then
+          echo "::error::Delivery score $SCORE is below the required threshold ($THRESHOLD)."
           exit 2
+        fi
+
+    - name: Post PR Comment
+      if: inputs.pr-comment == 'true' && github.event_name == 'pull_request'
+      shell: bash
+      env:
+        GH_TOKEN: ${{ inputs.token }}
+      run: |
+        if [ -f delivery-intel-pr-comment.md ]; then
+          gh pr comment ${{ github.event.pull_request.number }} \
+            --body-file delivery-intel-pr-comment.md \
+            --repo ${{ github.repository }}
         fi
