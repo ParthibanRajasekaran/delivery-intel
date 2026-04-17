@@ -71,7 +71,7 @@ function box(lines: string[]): string {
   const mid = lines.map((l) => {
     // Strip ANSI codes to measure visible length
     // eslint-disable-next-line no-control-regex
-    const visible = l.replace(/\x1b\[[0-9;]*m/g, "");
+    const visible = l.replaceAll(/\x1b\[[0-9;]*m/g, "");
     const pad = Math.max(0, W - visible.length - 2);
     return `│ ${l}${" ".repeat(pad)} │`;
   });

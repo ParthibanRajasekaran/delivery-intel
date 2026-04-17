@@ -194,8 +194,8 @@ function parseCliArgs(argv: string[]): CliArgs {
       token = argv[i] ?? null;
     } else if (argv[i] === "--fail-below" && argv[i + 1]) {
       i++;
-      const n = parseInt(argv[i], 10);
-      if (!isNaN(n)) {
+      const n = Number.parseInt(argv[i], 10);
+      if (!Number.isNaN(n)) {
         failBelow = n;
       }
     } else if (!argv[i].startsWith("--")) {
