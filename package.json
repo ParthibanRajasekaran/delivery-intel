@@ -1,11 +1,11 @@
 {
   "name": "delivery-intel",
-  "version": "1.2.0",
+  "version": "1.5.0",
   "type": "module",
   "engines": {
     "node": ">=18.0.0"
   },
-  "description": "Point it at any GitHub repo — get DORA metrics, vulnerability scan, and a health score. No setup, no tokens for public repos. CLI + web dashboard.",
+  "description": "DORA metrics, vulnerability scan, and delivery health score for any GitHub repo. One command, no setup, no tokens needed for public repos.",
   "keywords": [
     "dora",
     "dora-metrics",
@@ -16,12 +16,18 @@
     "deployment-frequency",
     "lead-time",
     "change-failure-rate",
+    "mean-time-to-restore",
+    "mttr",
     "vulnerability",
     "osv",
     "cli",
     "dashboard",
     "software-delivery",
-    "engineering-metrics"
+    "engineering-metrics",
+    "developer-productivity",
+    "platform-engineering",
+    "engineering-effectiveness",
+    "dx"
   ],
   "license": "MIT",
   "author": "ParthibanRajasekaran",
@@ -74,22 +80,22 @@
   "dependencies": {
     "@octokit/graphql": "^9.0.3",
     "@octokit/rest": "^22.0.1",
-    "@types/node": "^25.2.3",
-    "@types/react": "^19.2.14",
     "boxen": "^8.0.1",
     "chalk": "^5.6.2",
     "date-fns": "^4.1.0",
+    "nanospinner": "^1.2.2"
+  },
+  "devDependencies": {
+    "@types/node": "^25.2.3",
+    "@types/react": "^19.2.14",
     "framer-motion": "^12.34.2",
     "ioredis": "^5.9.3",
-    "nanospinner": "^1.2.2",
     "next": "^16.1.6",
     "react": "^19.2.4",
     "react-dom": "^19.2.4",
     "react-is": "^19.2.4",
     "recharts": "^3.7.0",
-    "typescript": "^5.9.3"
-  },
-  "devDependencies": {
+    "typescript": "^5.9.3",
     "@eslint/eslintrc": "^3.3.3",
     "@eslint/js": "^10.0.1",
     "@tailwindcss/postcss": "^4.2.0",

@@ -14,5 +14,14 @@
     "declarationMap": true,
     "sourceMap": true
   },
-  "include": ["src/cli/**/*.ts", "src/shared/**/*.ts"]
+  "include": [
+    "src/cli/**/*.ts",
+    "src/shared/**/*.ts",
+    "src/collectors/**/*.ts",
+    "src/domain/**/*.ts",
+    "src/metrics/**/*.ts",
+    "src/normalize/**/*.ts",
+    "src/scoring/**/*.ts",
+    "src/security/**/*.ts"
+  ]
 }

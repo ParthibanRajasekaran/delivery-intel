@@ -65,6 +65,26 @@ export interface Suggestion {
   actionItems: string[];
 }
 
+export interface TrendWindow {
+  deploymentsPerWeek: number;
+  leadTimeHours: number;
+  changeFailureRate: number;
+  score: number;
+}
+
+export interface TrendData {
+  windowDays: number;
+  current: TrendWindow;
+  prior: TrendWindow;
+  /** Positive delta = more deployments / lower failure rate = improving (sign is raw arithmetic). */
+  deltas: {
+    deploymentsPerWeek: number;
+    leadTimeHours: number;
+    changeFailureRate: number;
+    score: number;
+  };
+}
+
 export interface AnalysisResult {
   repo: RepoIdentifier;
   fetchedAt: string;
@@ -74,6 +94,8 @@ export interface AnalysisResult {
   overallScore: number;
   /** Deployment counts for the last 7 days (index 0 = 6 days ago, index 6 = today). */
   dailyDeployments: number[];
+  /** Present only when --trend flag is passed. */
+  trend?: TrendData;
 }
 
 // ---------------------------------------------------------------------------
@@ -395,10 +417,136 @@ function computeScore(dora: DORAMetrics, vulns: DependencyVulnerability[]): numb
 }
 
 // ---------------------------------------------------------------------------
+// Trend: compare last 30 days vs prior 30 days using same GitHub data
+// ---------------------------------------------------------------------------
+
+const TREND_WINDOW_DAYS = 30;
+const TREND_WEEKS_PER_WINDOW = TREND_WINDOW_DAYS / 7;
+
+/** Compute a window score from raw per-window metric values (no vuln penalty — consistent delta). */
+function windowScore(freq: number, leadHours: number, cfr: number): number {
+  const doraScore =
+    (SCORES[rateDeployFreq(freq)] + SCORES[rateLeadTime(leadHours)] + SCORES[rateCFR(cfr)]) / 3;
+  return Math.max(0, Math.min(100, Math.round(doraScore)));
+}
+
+// Minimal shapes needed from Octokit responses — cast once, no inline `any`.
+interface RawDeploy {
+  created_at: string;
+}
+interface RawPR {
+  merged_at: string | null;
+  created_at: string;
+}
+interface RawRun {
+  status: string;
+  conclusion: string | null;
+  created_at: string;
+}
+
+export async function computeTrend(octokit: Octokit, id: RepoIdentifier): Promise<TrendData> {
+  const now = new Date();
+  const cutoffCurrent = new Date(now.getTime() - TREND_WINDOW_DAYS * 24 * 60 * 60 * 1000);
+  const cutoffPrior = new Date(now.getTime() - TREND_WINDOW_DAYS * 2 * 24 * 60 * 60 * 1000);
+
+  const [rawDeploys, rawPRs, rawRuns] = await Promise.all([
+    fetchDeployments(octokit, id, 200),
+    fetchMergedPRs(octokit, id, 100),
+    fetchWorkflowRuns(octokit, id, 200),
+  ]);
+
+  // Cast to minimal typed shapes once — avoids repeated `(x: any)` inline casts.
+  const deploys = rawDeploys as unknown as RawDeploy[];
+  const prs = rawPRs as unknown as RawPR[];
+  const runs = rawRuns as unknown as RawRun[];
+
+  // Split into current (last 30d) and prior (31-60d) windows
+  const currentDeploys = deploys.filter((d) => new Date(d.created_at) >= cutoffCurrent);
+  const priorDeploys = deploys.filter((d) => {
+    const t = new Date(d.created_at);
+    return t >= cutoffPrior && t < cutoffCurrent;
+  });
+
+  const currentPRs = prs.filter((pr) => pr.merged_at && new Date(pr.merged_at) >= cutoffCurrent);
+  const priorPRs = prs.filter((pr) => {
+    if (!pr.merged_at) {
+      return false;
+    }
+    const t = new Date(pr.merged_at);
+    return t >= cutoffPrior && t < cutoffCurrent;
+  });
+
+  const currentRuns = runs.filter(
+    (r) => r.status === "completed" && new Date(r.created_at) >= cutoffCurrent,
+  );
+  const priorRuns = runs.filter((r) => {
+    const t = new Date(r.created_at);
+    return r.status === "completed" && t >= cutoffPrior && t < cutoffCurrent;
+  });
+
+  // Deployment frequency (fallback to merged PRs when no deployments)
+  const currentFreq =
+    currentDeploys.length > 0
+      ? currentDeploys.length / TREND_WEEKS_PER_WINDOW
+      : currentPRs.length / TREND_WEEKS_PER_WINDOW;
+  const priorFreq =
+    priorDeploys.length > 0
+      ? priorDeploys.length / TREND_WEEKS_PER_WINDOW
+      : priorPRs.length / TREND_WEEKS_PER_WINDOW;
+
+  // Lead time (median hours, reuse shared helper)
+  const currentLeadHours = median(
+    currentPRs
+      .filter((pr) => pr.merged_at !== null)
+      .map((pr) => differenceInHours(parseISO(pr.merged_at as string), parseISO(pr.created_at))),
+  );
+  const priorLeadHours = median(
+    priorPRs
+      .filter((pr) => pr.merged_at !== null)
+      .map((pr) => differenceInHours(parseISO(pr.merged_at as string), parseISO(pr.created_at))),
+  );
+
+  // Change failure rate
+  const currentFailed = currentRuns.filter((r) => r.conclusion === "failure");
+  const currentCFR = currentRuns.length > 0 ? (currentFailed.length / currentRuns.length) * 100 : 0;
+  const priorFailed = priorRuns.filter((r) => r.conclusion === "failure");
+  const priorCFR = priorRuns.length > 0 ? (priorFailed.length / priorRuns.length) * 100 : 0;
+
+  const currentScore = windowScore(currentFreq, currentLeadHours, currentCFR);
+  const priorScore = windowScore(priorFreq, priorLeadHours, priorCFR);
+
+  return {
+    windowDays: TREND_WINDOW_DAYS,
+    current: {
+      deploymentsPerWeek: +currentFreq.toFixed(2),
+      leadTimeHours: +currentLeadHours.toFixed(1),
+      changeFailureRate: +currentCFR.toFixed(1),
+      score: currentScore,
+    },
+    prior: {
+      deploymentsPerWeek: +priorFreq.toFixed(2),
+      leadTimeHours: +priorLeadHours.toFixed(1),
+      changeFailureRate: +priorCFR.toFixed(1),
+      score: priorScore,
+    },
+    deltas: {
+      deploymentsPerWeek: +(currentFreq - priorFreq).toFixed(2),
+      leadTimeHours: +(currentLeadHours - priorLeadHours).toFixed(1),
+      changeFailureRate: +(currentCFR - priorCFR).toFixed(1),
+      score: currentScore - priorScore,
+    },
+  };
+}
+
+// ---------------------------------------------------------------------------
 // Public: Full analysis
 // ---------------------------------------------------------------------------
 
-export async function analyze(repoSlug: string, token?: string): Promise<AnalysisResult> {
+export async function analyze(
+  repoSlug: string,
+  token?: string,
+  options?: { withTrend?: boolean },
+): Promise<AnalysisResult> {
   const id = parseRepoSlug(repoSlug);
   const octokit = createOctokit(token);
 
@@ -417,6 +565,7 @@ export async function analyze(repoSlug: string, token?: string): Promise<Analysi
 
   const suggestions = generateSuggestions(doraMetrics, vulns);
   const overallScore = computeScore(doraMetrics, vulns);
+  const trend = options?.withTrend ? await computeTrend(octokit, id) : undefined;
 
   return {
     repo: id,
@@ -426,5 +575,6 @@ export async function analyze(repoSlug: string, token?: string): Promise<Analysi
     suggestions,
     overallScore,
     dailyDeployments: deployResult.daily,
+    trend,
   };
 }
