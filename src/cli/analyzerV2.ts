@@ -62,7 +62,7 @@ import type { FixPack } from "../scoring/fixPackEngine.js";
 
 // Forensics & verdict
 import { computeForensicSignals } from "../scoring/forensicEngine.js";
-import type { ForensicSignal, RepoVerdict } from "../domain/forensics.js";
+import type { ForensicSignal, RepoVerdict, AnalysisMode } from "../domain/forensics.js";
 import { computeVerdict } from "../scoring/verdictEngine.js";
 
 // Types re-exported from the v1 analyzer for shared use
@@ -166,7 +166,11 @@ function computeMetrics(events: EvidenceEvent[], profile: RepoEvidenceProfile): 
 // Public: analyzeV2
 // ---------------------------------------------------------------------------
 
-export async function analyzeV2(repoSlug: string, token?: string): Promise<AnalysisResultV2> {
+export async function analyzeV2(
+  repoSlug: string,
+  token?: string,
+  opts?: { mode?: AnalysisMode | null },
+): Promise<AnalysisResultV2> {
   const repo = parseRepoSlug(repoSlug);
   const octokit = createOctokit(token);
 
@@ -211,7 +215,7 @@ export async function analyzeV2(repoSlug: string, token?: string): Promise<Analy
   });
 
   // 12. Repo verdict — categorical judgment
-  const verdict = computeVerdict(metrics, forensics, vulnerabilities);
+  const verdict = computeVerdict(metrics, forensics, vulnerabilities, opts?.mode);
 
   return {
     schemaVersion: 2,

@@ -13,6 +13,7 @@
 import { analyze } from "./analyzer.js";
 import type { AnalysisResult } from "./analyzer.js";
 import { analyzeV2 } from "./analyzerV2.js";
+import { compareRepos } from "./compareEngine.js";
 import { renderCyberReport } from "./cyberRenderer.js";
 import { renderVerdict } from "./verdictRenderer.js";
 import { renderPRComment } from "./prCommentRenderer.js";
@@ -94,7 +95,7 @@ const bold = chalk.bold.white;
 // Help & Version
 // ---------------------------------------------------------------------------
 
-const VERSION = "1.7.0";
+const VERSION = "1.8.0";
 
 function printHelp(): void {
   console.log(`
@@ -111,6 +112,7 @@ ${bold("EXAMPLES")}
   ${cyan("npx delivery-intel")} vercel/next.js ${dim("--v2 --pr-comment")} ${dim("# PR guardrail comment")}
   ${cyan("npx delivery-intel")} vercel/next.js ${dim("--json")}            ${dim("# raw JSON output")}
   ${cyan("npx delivery-intel")} vercel/next.js ${dim("--risk --narrative")}
+  ${cyan("npx delivery-intel")} ${dim("--compare")} react/react vercel/next.js ${dim("# side-by-side trust comparison")}
 
 ${bold("OPTIONS")}
   ${chalk.hex("#ffbe0b")("--v2")}              ${bold("← New")} Use the evidence-driven v2 engine (grade, confidence, policy)
@@ -125,6 +127,7 @@ ${bold("OPTIONS")}
   ${chalk.hex("#ffbe0b")("--trend")}           Compare last 30 days vs prior 30 days (score deltas)
   ${chalk.hex("#ffbe0b")("--risk")}            Include workflow strain analysis
   ${chalk.hex("#ffbe0b")("--narrative")}       Generate executive narrative summary (LLM or fallback)
+  ${chalk.hex("#ffbe0b")("--compare")}         Compare two repos side-by-side (trust engine)
   ${chalk.hex("#ffbe0b")("--help")}            Show this help message
   ${chalk.hex("#ffbe0b")("--version")}         Show version number
 
@@ -168,10 +171,12 @@ interface CliArgs {
   v2Mode: boolean;
   prComment: boolean;
   blockingEnabled: boolean;
+  compareMode: boolean;
   failBelow: number | null;
   outputFile: string | null;
   token: string | null;
   repo: string | null;
+  compareRepoB: string | null;
   mode: AnalysisMode | null;
 }
 
@@ -184,11 +189,17 @@ function parseCliArgs(argv: string[]): CliArgs {
   let v2Mode = argv.includes("--v2");
   const prComment = argv.includes("--pr-comment");
   const blockingEnabled = argv.includes("--block");
+  const compareMode = argv.includes("--compare");
   let outputFile: string | null = null;
   let token: string | null = null;
   let repo: string | null = null;
+  let compareRepoB: string | null = null;
   let failBelow: number | null = null;
   let mode: AnalysisMode | null = null;
+
+  if (compareMode) {
+    v2Mode = true;
+  }
 
   for (let i = 0; i < argv.length; i++) {
     if (argv[i] === "--output" && argv[i + 1]) {
@@ -211,7 +222,11 @@ function parseCliArgs(argv: string[]): CliArgs {
         v2Mode = true; // --mode implies --v2
       }
     } else if (!argv[i].startsWith("--")) {
-      repo = argv[i];
+      if (compareMode && repo) {
+        compareRepoB = argv[i];
+      } else {
+        repo = argv[i];
+      }
     }
   }
 
@@ -224,10 +239,12 @@ function parseCliArgs(argv: string[]): CliArgs {
     v2Mode,
     prComment,
     blockingEnabled,
+    compareMode,
     failBelow,
     outputFile,
     token,
     repo,
+    compareRepoB,
     mode,
   };
 }
@@ -378,9 +395,76 @@ async function main(): Promise<void> {
   }
 
   try {
+    // ── compare path ─────────────────────────────────────────────────────────
+    if (cli.compareMode) {
+      if (!cli.compareRepoB) {
+        console.error(
+          red("Error:") + " --compare requires two repos: --compare owner/repoA owner/repoB",
+        );
+        process.exit(1);
+      }
+      const modeForCompare = cli.mode ?? "adopt";
+      const [resultA, resultB] = await Promise.all([
+        analyzeV2(cli.repo, token ?? undefined, { mode: modeForCompare }),
+        analyzeV2(cli.compareRepoB, token ?? undefined, { mode: modeForCompare }),
+      ]);
+      const comparison = compareRepos(resultA, resultB);
+
+      if (cli.jsonMode || cli.outputFile) {
+        const json = JSON.stringify(comparison, null, 2);
+        emitJsonOutput(json, cli.outputFile, cli.jsonMode);
+      } else {
+        console.log();
+        console.log(
+          bold("  COMPARE: ") + cyan(comparison.repoA) + dim(" vs ") + cyan(comparison.repoB),
+        );
+        console.log();
+        if (comparison.trustScoreA !== null && comparison.trustScoreB !== null) {
+          console.log(
+            "  " +
+              bold("Trust Score: ") +
+              `${comparison.trustScoreA}` +
+              dim(" vs ") +
+              `${comparison.trustScoreB}` +
+              dim(` → Winner: ${comparison.winner}`),
+          );
+          console.log(
+            "  " +
+              bold("Trust Level: ") +
+              `${comparison.trustLevelA}` +
+              dim(" vs ") +
+              `${comparison.trustLevelB}`,
+          );
+          console.log();
+        }
+        if (comparison.dimensions.length > 0) {
+          console.log(bold("  DIMENSIONS"));
+          for (const d of comparison.dimensions) {
+            const bar = d.winner === "a" ? green("◀") : d.winner === "b" ? red("▶") : dim("=");
+            console.log(
+              `    ${bar} ${d.name.padEnd(28)} ${String(d.repoA).padStart(3)} vs ${String(d.repoB).padStart(3)}`,
+            );
+          }
+          console.log();
+        }
+        console.log(bold("  METRICS"));
+        for (const m of comparison.metrics) {
+          const bar = m.winner === "a" ? green("◀") : m.winner === "b" ? red("▶") : dim("=");
+          console.log(
+            `    ${bar} ${m.name.padEnd(28)} ${m.tierA.padStart(7)} vs ${m.tierB.padStart(7)}`,
+          );
+        }
+        console.log();
+        console.log("  " + dim(comparison.headline));
+        console.log("  " + dim(comparison.narrative));
+        console.log();
+      }
+      return;
+    }
+
     // ── v2 path ──────────────────────────────────────────────────────────────
     if (cli.v2Mode) {
-      const v2Task = analyzeV2(cli.repo, token ?? undefined);
+      const v2Task = analyzeV2(cli.repo, token ?? undefined, { mode: cli.mode });
       const result =
         !cli.jsonMode && !cli.noSpinner ? await withScanSequence(v2Task) : await v2Task;
 

@@ -2,9 +2,9 @@
 
 # delivery-intel
 
-**Evidence-driven repo intelligence for any GitHub repo.**
+**The repo trust engine for GitHub.**
 
-*The fastest way to determine whether a repo is safe to adopt, healthy to change, and disciplined enough to trust in CI.*
+*Evidence-driven intelligence that tells you whether a repo is safe to adopt, healthy to change, and disciplined enough to trust in CI.*
 
 [![npm version](https://img.shields.io/npm/v/delivery-intel?color=cb3837&label=npm&logo=npm&logoColor=white)](https://www.npmjs.com/package/delivery-intel)
 [![npm downloads](https://img.shields.io/npm/dw/delivery-intel?color=cb3837&logo=npm&logoColor=white)](https://www.npmjs.com/package/delivery-intel)
@@ -16,9 +16,9 @@
 </div>
 
 > delivery-intel answers three questions — with evidence, not guesses:
-> 1. **Does this repo ship well?** (deployment frequency, lead time, forensic signals)
-> 2. **Does it fail safely?** (change fail rate, recovery time, vulnerabilities, flaky pipelines)
-> 3. **Is it getting better or worse?** (30-day trend, verdict: exemplary / fast-but-fragile / unstable)
+> 1. **Should I trust this repo?** (trust score, 6 trust dimensions, 15 forensic signals)
+> 2. **Does it ship well and fail safely?** (DORA metrics, vulnerability scan, change fail rate)
+> 3. **How does it compare?** (side-by-side comparison of any two repos)
 >
 > Every metric shows its source, sample size, and confidence level. No fake precision.
 
@@ -27,11 +27,14 @@
 ## ⚡ Quick Start
 
 ```bash
-# Verdict mode — grade, confidence, forensics, policy (v2 engine)
-npx delivery-intel facebook/react --v2
-
-# Mode-specific analysis (implies --v2)
+# Trust verdict — should I adopt this repo? (trust score, dimensions, forensics)
 npx delivery-intel facebook/react --mode adopt
+
+# Compare two repos side-by-side
+npx delivery-intel --compare facebook/react vercel/next.js
+
+# Full delivery health check (v2 engine)
+npx delivery-intel facebook/react --v2
 
 # Classic metrics dump (v1 engine)
 npx delivery-intel facebook/react
@@ -124,6 +127,45 @@ Supported manifest ecosystems: **npm** · **pip** · **Go modules** · **Poetry*
 
 ---
 
+## 🔍 Trust Engine
+
+The trust engine (`--mode adopt`) computes a **Trust Score (0–100)** across 6 weighted dimensions, powered by 15 forensic signal detectors:
+
+| Dimension | Weight | Key signals |
+|-----------|--------|-------------|
+| **Maintenance freshness** | 1.0 | Days since last commit/release, commit cadence |
+| **CI reliability** | 0.9 | Pipeline failure rate, CI flakiness across workflows |
+| **Vulnerability exposure** | 0.9 | Critical/high CVE density from OSV.dev scan |
+| **Release hygiene** | 0.8 | Semver compliance, conventional commits, changelog |
+| **Contributor concentration** | 0.8 | Bus factor — single-maintainer risk |
+| **Change safety** | 0.7 | Rollback signals, rework density, review latency |
+
+Trust levels: **high** (≥75) · **moderate** (≥45) · **low** (<45) · **insufficient-evidence** (too few signals)
+
+### Compare mode
+
+```bash
+npx delivery-intel --compare facebook/react vercel/next.js
+npx delivery-intel --compare facebook/react vercel/next.js --json
+```
+
+Runs the trust engine on both repos and produces a structured comparison: per-dimension deltas, metric tier diffs, unique forensic signals, and a winner verdict.
+
+### Fix Packs with Trust Gain
+
+Every fix pack now includes a **trust gain estimate** — how much each fix would improve the trust score:
+
+```jsonc
+{
+  "id": "fix-missing-dependabot",
+  "title": "Enable Dependabot",
+  "trustGain": 15,          // estimated trust score improvement
+  "rationale": "Automated dependency updates reduce vulnerability exposure..."
+}
+```
+
+---
+
 ## Usage
 
 ### CLI (zero install)
@@ -160,6 +202,7 @@ npx delivery-intel vercel/next.js --v2 --json --output report.json
 | `--pr-comment` | Write a PR guardrail comment to `delivery-intel-pr-comment.md` (use with `--v2`) |
 | `--fail-below N` | Exit code 2 if delivery score is below N |
 | `--block` | Enable blocking violations (use with `--v2 --fail-below`) |
+| `--compare` | Compare two repos side-by-side: `--compare repoA repoB` (implies `--v2`, defaults to adopt mode) |
 | `--json` | Output raw JSON instead of the formatted terminal report |
 | `--output <file>` | Write JSON to a file (can combine with `--json`) |
 | `--trend` | Show 30-day vs prior-30-day deltas for all metrics |
@@ -375,13 +418,14 @@ The `GET /api/badge?repo=owner/repo` endpoint returns a [Shields.io endpoint-bad
 │   CLI        │   Dashboard   │   CI Workflow / Action        │
 │  (npx)       │  (Next.js)    │   (action.yml)                │
 ├──────────────┴───────────────┴───────────────────────────────┤
-│              Renderers (terminal, JSON, PR comment)           │
+│    Renderers (terminal, JSON, PR comment, compare output)    │
 ├──────────────────────────────────────────────────────────────┤
-│          Verdict Engine  ·  Forensic Signal Engine            │
+│  Trust Engine  ·  Compare Engine  ·  Verdict Engine          │
+│  (6 dimensions, 15 signals, trust score 0–100)               │
 ├──────────┬────────────┬──────────────┬───────────────────────┤
 │ Scoring  │ Policies   │  Fix Packs   │  Recommendations      │
-│ (conf-   │ (gates,    │  (copy-paste │  (ranked actions)     │
-│  weighted)│  blocking) │   artifacts) │                       │
+│ (conf-   │ (gates,    │  (trust gain │  (ranked actions)     │
+│  weighted)│  blocking) │   estimates) │                       │
 ├──────────┴────────────┴──────────────┴───────────────────────┤
 │  DORA Metrics (6) · Confidence · Evidence Sources · Caveats  │
 ├──────────────────────────────────────────────────────────────┤
