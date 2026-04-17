@@ -60,6 +60,16 @@ export function computeDeploymentReworkRate(
           "GitHub Pull Requests (title/label heuristics)",
         ],
         caveats,
+        isInferred: true,
+        coverage: { sampleSize: deploys.length, windowDays: 30 },
+        assumptions: [
+          "Deployments linked to PRs with rollback/hotfix labels or branch names containing those signals are counted as rework.",
+          "Deployments without a linked PR are checked by ref name only.",
+        ],
+        howToImproveAccuracy: [
+          "Label all rollback and hotfix PRs explicitly with 'rollback', 'hotfix', or 'revert' labels.",
+          "Track rework deployments with a dedicated GitHub Deployment environment (e.g. 'rollback-production').",
+        ],
       };
     }
   }
@@ -81,6 +91,16 @@ export function computeDeploymentReworkRate(
         ...caveats,
         "No production deployment data found. Using merged PRs as deployment proxy.",
       ],
+      isInferred: true,
+      coverage: { sampleSize: merges.length, windowDays: 30 },
+      assumptions: [
+        "Merged PRs with rollback/hotfix/revert in title or labels are treated as rework deployments.",
+        "Teams that don't label rework PRs will appear to have a lower than actual rework rate.",
+      ],
+      howToImproveAccuracy: [
+        "Emit GitHub deployment events to measure actual production deployment rework rate.",
+        "Label all rollback, hotfix, and revert PRs consistently.",
+      ],
     };
   }
 
@@ -91,5 +111,11 @@ export function computeDeploymentReworkRate(
     confidence: "unknown",
     evidenceSources: [],
     caveats: ["Insufficient data to compute deployment rework rate."],
+    isInferred: true,
+    coverage: { sampleSize: 0, windowDays: 0 },
+    assumptions: [],
+    howToImproveAccuracy: [
+      "Ensure PRs are created and merged via GitHub, or add GitHub Deployment events.",
+    ],
   };
 }

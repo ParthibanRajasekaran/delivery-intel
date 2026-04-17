@@ -41,6 +41,16 @@ export function computeChangeFailRate(
           "Change Fail Rate estimated from PR titles/labels matching rollback, hotfix, revert, or incident patterns.",
           "This is an approximation — actual DORA CFR requires production deployment failure data.",
         ],
+        isInferred: true,
+        coverage: { sampleSize: merges.length, windowDays: 30 },
+        assumptions: [
+          "PRs with titles/labels containing 'revert', 'rollback', 'hotfix', or 'incident' are counted as failures.",
+          "Teams that don't label hotfixes will appear to have a lower than actual CFR.",
+        ],
+        howToImproveAccuracy: [
+          "Emit GitHub deployment events with explicit success/failure status updates.",
+          "Label hotfix and rollback PRs consistently so heuristic detection is more reliable.",
+        ],
       };
     }
 
@@ -53,6 +63,12 @@ export function computeChangeFailRate(
       caveats: [
         "Cannot compute Change Fail Rate without production deployment status data.",
         "Connect GitHub Deployments with explicit success/failure statuses to enable this metric.",
+      ],
+      isInferred: true,
+      coverage: { sampleSize: 0, windowDays: 0 },
+      assumptions: [],
+      howToImproveAccuracy: [
+        "Emit GitHub deployment events with success/failure status from your CI/CD pipeline.",
       ],
     };
   }
@@ -83,6 +99,12 @@ export function computeChangeFailRate(
       confidence: "low",
       evidenceSources: ["GitHub Deployment Statuses (production)"],
       caveats: ["No terminal production deployment statuses found."],
+      isInferred: false,
+      coverage: { sampleSize: 0, windowDays: 30 },
+      assumptions: [],
+      howToImproveAccuracy: [
+        "Ensure your deploy workflow emits both 'success' and 'failure' deployment status updates.",
+      ],
     };
   }
 
@@ -98,5 +120,14 @@ export function computeChangeFailRate(
     confidence: total >= 10 ? "high" : total >= 3 ? "medium" : "low",
     evidenceSources: ["GitHub Deployment Statuses (production, terminal state)"],
     caveats: [],
+    isInferred: false,
+    coverage: { sampleSize: total, windowDays: 30 },
+    assumptions: [
+      "Each deployment's terminal state (success/failure/error) is used. Rollback events are not separately tracked.",
+    ],
+    howToImproveAccuracy:
+      total < 10
+        ? ["Increase sample size — need ≥10 production deployments for high confidence."]
+        : [],
   };
 }

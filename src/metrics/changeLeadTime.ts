@@ -75,16 +75,18 @@ export function computeChangeLeadTime(
           prFlowMedian !== null
             ? [`PR flow time (open→merge) is separately ${prFlowMedian}h median.`]
             : [],
+        isInferred: false,
+        coverage: { sampleSize: commitToDeployHours.length, windowDays: 30 },
+        assumptions: [
+          "Lead time is measured from the commit SHA referenced in the deployment to the deployment success timestamp.",
+        ],
+        howToImproveAccuracy: [],
       };
     }
   }
 
   // --- Fallback: PR flow time ---
   if (prFlowMedian !== null && merges.length >= 3) {
-    const caveats = [
-      "No production deployment + commit linkage found. Using PR open→merge time as a lead time proxy.",
-      "DORA defines lead time as commit→production deploy, which may differ from PR flow time.",
-    ];
     return {
       key: "changeLeadTime",
       value: {
@@ -95,7 +97,19 @@ export function computeChangeLeadTime(
       tier: tierLeadTime(prFlowMedian),
       confidence: "low",
       evidenceSources: ["GitHub Pull Requests (open→merge time)"],
-      caveats,
+      caveats: [
+        "No production deployment + commit linkage found. Using PR open→merge time as a lead time proxy.",
+        "DORA defines lead time as commit→production deploy, which may differ from PR flow time.",
+      ],
+      isInferred: true,
+      coverage: { sampleSize: merges.length, windowDays: 30 },
+      assumptions: [
+        "PR open→merge duration is used as a proxy for commit-to-production lead time.",
+        "Teams that batch releases will show lower than actual lead time here.",
+      ],
+      howToImproveAccuracy: [
+        "Emit GitHub deployment events with the deployed commit SHA to enable commit-to-deploy measurement.",
+      ],
     };
   }
 
@@ -110,5 +124,11 @@ export function computeChangeLeadTime(
     confidence: "unknown",
     evidenceSources: [],
     caveats: ["Insufficient PR or deployment history to compute lead time."],
+    isInferred: true,
+    coverage: { sampleSize: 0, windowDays: 0 },
+    assumptions: [],
+    howToImproveAccuracy: [
+      "Ensure PRs are opened and merged (not squashed outside GitHub), or add deployment events.",
+    ],
   };
 }

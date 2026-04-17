@@ -52,6 +52,10 @@ import { scanVulnerabilitiesV2 } from "../security/vulnerabilityEngine.js";
 // Scoring
 import { computeDeliveryScore } from "../scoring/deliveryScore.js";
 import { generateRecommendationsV2 } from "../scoring/recommendationEngine.js";
+import { buildScorecard } from "../domain/scorecard.js";
+import type { Scorecard } from "../domain/scorecard.js";
+import { generateFixPacks } from "../scoring/fixPackEngine.js";
+import type { FixPack } from "../scoring/fixPackEngine.js";
 
 // Types re-exported from the v1 analyzer for shared use
 import type { DependencyVulnerability, Suggestion } from "./analyzer.js";
@@ -78,6 +82,8 @@ export interface AnalysisResultV2 {
   recommendations: Suggestion[];
   /** Deployment counts for the last 7 days (index 0 = 6 days ago, index 6 = today). */
   dailyDeployments: number[];
+  scorecard: Scorecard;
+  fixPacks: FixPack[];
 }
 
 // ---------------------------------------------------------------------------
@@ -160,6 +166,12 @@ export async function analyzeV2(repoSlug: string, token?: string): Promise<Analy
   // 8. Daily sparkline
   const dailyDeployments = deploymentDailyBuckets(events);
 
+  // 9. Multi-dimensional scorecard
+  const scorecard = buildScorecard(metrics, vulnerabilities, deliveryScore);
+
+  // 10. Concrete fix packs
+  const fixPacks = generateFixPacks(metrics, vulnerabilities);
+
   return {
     schemaVersion: 2,
     repo,
@@ -171,5 +183,7 @@ export async function analyzeV2(repoSlug: string, token?: string): Promise<Analy
     scores: { delivery: deliveryScore },
     recommendations,
     dailyDeployments,
+    scorecard,
+    fixPacks,
   };
 }

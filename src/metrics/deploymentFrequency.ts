@@ -50,7 +50,8 @@ export function computeDeploymentFrequency(
     );
     if (statuses.length >= 2) {
       const dates = statuses.map((s) => new Date(s.at));
-      const freq = deploymentsPerWeek(dates.length, spanDays(dates));
+      const sd = spanDays(dates);
+      const freq = deploymentsPerWeek(dates.length, sd);
       evidenceSources.push("GitHub Deployment Statuses (production, success)");
       return {
         key: "deploymentFrequency",
@@ -59,6 +60,10 @@ export function computeDeploymentFrequency(
         confidence: "high",
         evidenceSources,
         caveats,
+        isInferred: false,
+        coverage: { sampleSize: statuses.length, windowDays: Math.round(sd) },
+        assumptions: [],
+        howToImproveAccuracy: [],
       };
     }
   }
@@ -70,7 +75,8 @@ export function computeDeploymentFrequency(
     );
     if (deploys.length >= 2) {
       const dates = deploys.map((d) => new Date(d.at));
-      const freq = deploymentsPerWeek(dates.length, spanDays(dates));
+      const sd = spanDays(dates);
+      const freq = deploymentsPerWeek(deploys.length, sd);
       evidenceSources.push("GitHub Deployments API (production environment)");
       caveats.push(
         "Deployment status (success/failure) not available; counting all prod deployments.",
@@ -82,6 +88,14 @@ export function computeDeploymentFrequency(
         confidence: "medium",
         evidenceSources,
         caveats,
+        isInferred: false,
+        coverage: { sampleSize: deploys.length, windowDays: Math.round(sd) },
+        assumptions: [
+          "All production-environment deployments are counted, regardless of success/failure status.",
+        ],
+        howToImproveAccuracy: [
+          "Emit deployment status updates (success/failure) from your CI/CD pipeline to enable confidence: high.",
+        ],
       };
     }
   }
@@ -91,7 +105,8 @@ export function computeDeploymentFrequency(
     const deploys = eventsByType(events, "DeploymentObserved");
     if (deploys.length >= 2) {
       const dates = deploys.map((d) => new Date(d.at));
-      const freq = deploymentsPerWeek(dates.length, spanDays(dates));
+      const sd = spanDays(dates);
+      const freq = deploymentsPerWeek(deploys.length, sd);
       evidenceSources.push("GitHub Deployments API (all environments)");
       caveats.push(
         "No production-specific environment found. Counting all deployment environments.",
@@ -103,6 +118,14 @@ export function computeDeploymentFrequency(
         confidence: "medium",
         evidenceSources,
         caveats,
+        isInferred: false,
+        coverage: { sampleSize: deploys.length, windowDays: Math.round(sd) },
+        assumptions: [
+          "No 'production' environment label found — counting all environments as a proxy.",
+        ],
+        howToImproveAccuracy: [
+          "Name your deployment environment 'production', 'prod', or 'live' to enable production-only filtering.",
+        ],
       };
     }
   }
@@ -112,7 +135,8 @@ export function computeDeploymentFrequency(
     const merges = eventsByType(events, "PullRequestMerged");
     if (merges.length >= 2) {
       const dates = merges.map((m) => new Date(m.at));
-      const freq = deploymentsPerWeek(dates.length, spanDays(dates));
+      const sd = spanDays(dates);
+      const freq = deploymentsPerWeek(merges.length, sd);
       evidenceSources.push("GitHub Pull Requests (merged, used as deployment proxy)");
       caveats.push(
         "No GitHub Deployment data found. Using merged PRs as a proxy for deployment frequency. " +
@@ -125,6 +149,15 @@ export function computeDeploymentFrequency(
         confidence: "low",
         evidenceSources,
         caveats,
+        isInferred: true,
+        coverage: { sampleSize: merges.length, windowDays: Math.round(sd) },
+        assumptions: [
+          "Every merged PR is assumed to trigger a production deployment.",
+          "Repos that batch releases or require manual gates will show inflated frequency.",
+        ],
+        howToImproveAccuracy: [
+          "Add a deploy workflow that emits GitHub deployment events (see Fix Pack: missing-deployment-tracking).",
+        ],
       };
     }
   }
@@ -137,6 +170,12 @@ export function computeDeploymentFrequency(
     confidence: "unknown",
     evidenceSources: [],
     caveats: ["Insufficient deployment or PR history to compute deployment frequency."],
+    isInferred: true,
+    coverage: { sampleSize: 0, windowDays: 0 },
+    assumptions: [],
+    howToImproveAccuracy: [
+      "Add GitHub deployment events or ensure PRs are merged to the default branch.",
+    ],
   };
 }
 

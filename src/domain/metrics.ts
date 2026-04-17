@@ -22,6 +22,14 @@ export type PerformanceTier = "Elite" | "High" | "Medium" | "Low" | "Unknown";
 // Generic metric result wrapper
 // ---------------------------------------------------------------------------
 
+/** Sample size and observation window for a metric. */
+export interface MetricCoverage {
+  /** Number of data points used (e.g. deployments, PRs, runs). */
+  sampleSize: number;
+  /** Lookback window in days over which data was collected. */
+  windowDays: number;
+}
+
 export interface MetricResult<T> {
   /** Stable key for this metric (machine-readable). */
   key: string;
@@ -35,6 +43,23 @@ export interface MetricResult<T> {
   evidenceSources: string[];
   /** Human-readable caveats, fallbacks, or assumptions that were applied. */
   caveats: string[];
+  /**
+   * True when this metric is approximated from a proxy signal (e.g. PRs instead of
+   * deployment events). False when the DORA-defined primary signal was available.
+   */
+  isInferred: boolean;
+  /** Sample size and observation window. */
+  coverage: MetricCoverage;
+  /**
+   * Explicit assumptions that were made during computation. Surfaced to the user
+   * so they can assess trustworthiness. Distinct from caveats (which are warnings).
+   */
+  assumptions: string[];
+  /**
+   * Concrete steps the repo owner can take to get a higher-confidence reading.
+   * E.g. "Emit GitHub deployment events from CI/CD".
+   */
+  howToImproveAccuracy: string[];
 }
 
 // ---------------------------------------------------------------------------

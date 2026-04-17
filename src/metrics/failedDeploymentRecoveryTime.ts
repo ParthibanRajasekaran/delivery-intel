@@ -54,6 +54,15 @@ export function computeFailedDeploymentRecoveryTime(
           confidence: "low",
           evidenceSources: ["GitHub Actions Workflow Runs (failure→success on same workflow)"],
           caveats,
+          isInferred: true,
+          coverage: { sampleSize: recoveryHours.length, windowDays: 30 },
+          assumptions: [
+            "CI pipeline recovery (failure→success on the same workflow) is used as a proxy for production deployment recovery.",
+            "DORA MTTR is measured from production incident to recovery — this approximation may differ significantly.",
+          ],
+          howToImproveAccuracy: [
+            "Emit GitHub deployment events with failure/success status to measure actual production recovery time.",
+          ],
         };
       }
     }
@@ -66,6 +75,12 @@ export function computeFailedDeploymentRecoveryTime(
       evidenceSources: [],
       caveats: [
         "No production deployment status data found. Cannot compute Failed Deployment Recovery Time.",
+      ],
+      isInferred: true,
+      coverage: { sampleSize: 0, windowDays: 0 },
+      assumptions: [],
+      howToImproveAccuracy: [
+        "Emit GitHub deployment events with failure/success status updates from your CI/CD pipeline.",
       ],
     };
   }
@@ -121,6 +136,12 @@ export function computeFailedDeploymentRecoveryTime(
           ? "No production deployment failures found in recent history."
           : "Only one recovery event found — insufficient for a reliable median.",
       ],
+      isInferred: false,
+      coverage: { sampleSize: recoveryHours.length, windowDays: 30 },
+      assumptions: [],
+      howToImproveAccuracy: [
+        "More production deployment failures (and subsequent recoveries) are needed to compute a reliable median.",
+      ],
     };
   }
 
@@ -133,5 +154,11 @@ export function computeFailedDeploymentRecoveryTime(
     confidence: "high",
     evidenceSources: ["GitHub Deployment Statuses (production, failure→success transitions)"],
     caveats: [],
+    isInferred: false,
+    coverage: { sampleSize: recoveryHours.length, windowDays: 30 },
+    assumptions: [
+      "Recovery is measured from the failed deployment status to the next successful deployment in the same production environment.",
+    ],
+    howToImproveAccuracy: [],
   };
 }

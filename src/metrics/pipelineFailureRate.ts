@@ -23,6 +23,12 @@ export function computePipelineFailureRate(
       confidence: "unknown",
       evidenceSources: [],
       caveats: ["No GitHub Actions workflow runs found."],
+      isInferred: false,
+      coverage: { sampleSize: 0, windowDays: 0 },
+      assumptions: [],
+      howToImproveAccuracy: [
+        "Add GitHub Actions CI workflows to enable pipeline failure rate tracking.",
+      ],
     };
   }
 
@@ -37,6 +43,10 @@ export function computePipelineFailureRate(
       confidence: "unknown",
       evidenceSources: ["GitHub Actions Workflow Runs"],
       caveats: ["No completed workflow runs found."],
+      isInferred: false,
+      coverage: { sampleSize: 0, windowDays: 30 },
+      assumptions: [],
+      howToImproveAccuracy: [],
     };
   }
 
@@ -53,5 +63,12 @@ export function computePipelineFailureRate(
       "Pipeline failure rate measures CI workflow run outcomes, not production deployment failures.",
       "DORA's Change Fail Rate requires production deployment data and is computed separately.",
     ],
+    isInferred: false,
+    coverage: { sampleSize: completed.length, windowDays: 30 },
+    assumptions: [
+      "Workflow runs with conclusion='failure' are counted as failures. Cancelled and skipped runs are excluded.",
+    ],
+    howToImproveAccuracy:
+      completed.length < 20 ? ["More workflow runs are needed (≥20) for high confidence."] : [],
   };
 }

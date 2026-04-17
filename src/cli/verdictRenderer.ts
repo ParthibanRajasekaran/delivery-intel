@@ -137,8 +137,16 @@ export function renderVerdict(
   policy: PolicyResult,
   scoreDelta?: number,
 ): string {
-  const { scores, metrics, repoProfile, recommendations, scannedManifests, vulnerabilities } =
-    result;
+  const {
+    scores,
+    metrics,
+    repoProfile,
+    recommendations,
+    scannedManifests,
+    vulnerabilities,
+    scorecard,
+    fixPacks,
+  } = result;
   const grade = toLetterGrade(scores.delivery.score);
   const gradeStr = gradeChalk(scores.delivery.score)(grade);
   const scoreStr = gradeChalk(scores.delivery.score)(`${scores.delivery.score}/100`);
@@ -309,6 +317,76 @@ export function renderVerdict(
   } else {
     lines.push(section("SECURITY"));
     lines.push(bullet(green("✓"), "No known vulnerabilities found in scanned manifests"));
+  }
+
+  // ── Scorecard gates ────────────────────────────────────────────────────────
+  lines.push(section("SCORECARD"));
+
+  function gateIcon(status: string): string {
+    if (status === "pass") {
+      return green("✓");
+    }
+    if (status === "warn") {
+      return yellow("▲");
+    }
+    return red("✖");
+  }
+  function evidenceGradeColor(g: string): ChalkInstance {
+    if (g === "A") {
+      return green;
+    }
+    if (g === "B") {
+      return chalk.hex("#39ff14");
+    }
+    if (g === "C") {
+      return yellow;
+    }
+    return red;
+  }
+  const egc = evidenceGradeColor(scorecard.evidenceQuality);
+  lines.push(
+    bullet(
+      egc(`[${scorecard.evidenceQuality}]`),
+      `Evidence quality grade  (${scorecard.inferredMetricCount}/${scorecard.totalMetricCount} metrics inferred)`,
+    ),
+  );
+  lines.push(
+    `  ${gateIcon(scorecard.securityHygiene)} Security Hygiene     ${gateIcon(scorecard.flowHealth)} Flow Health`,
+  );
+  lines.push(
+    `  ${gateIcon(scorecard.stabilityHealth)} Stability Health     ${gateIcon(scorecard.operationalMaturity)} Operational Maturity`,
+  );
+  lines.push(
+    `  Delivery confidence: ${confidenceChalk(scores.delivery.confidence)(scores.delivery.confidence)}   Delivery score: ${gradeChalk(scores.delivery.score)(String(scores.delivery.score))}/100`,
+  );
+
+  // ── Fix Packs ─────────────────────────────────────────────────────────────
+  if (fixPacks.length > 0) {
+    lines.push(section(`FIX PACKS  (${fixPacks.length} available)`));
+    const topFixPacks = fixPacks.slice(0, 3);
+    topFixPacks.forEach((fp, i) => {
+      const effortColor = fp.effort === "low" ? green : fp.effort === "medium" ? yellow : red;
+      lines.push(bullet(cyan(`${i + 1}.`), white(fp.finding)));
+      lines.push(bullet("  ", dim(fp.whyItMatters.split(".")[0] + ".")));
+      lines.push(
+        bullet("  ", `Effort: ${effortColor(fp.effort)}   Impact: ${cyan(fp.impactArea)}`),
+      );
+      if (fp.artifacts.length > 0) {
+        const fileList = fp.artifacts
+          .slice(0, 3)
+          .map((a) => cyan(a.filename))
+          .join(", ");
+        lines.push(bullet("  ", `Artifacts: ${fileList}`));
+      }
+    });
+    if (fixPacks.length > 3) {
+      lines.push(
+        bullet(
+          dim("·"),
+          dim(`+${fixPacks.length - 3} more fix packs — run with --json to see all`),
+        ),
+      );
+    }
   }
 
   // ── Fix First ─────────────────────────────────────────────────────────────
