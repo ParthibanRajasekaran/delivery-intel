@@ -98,6 +98,23 @@ export function renderPRComment(
   lines.push(`| **Trend** | ${trendStr} | vs. prior 30 days |`);
   lines.push("");
 
+  // ── Scorecard gates ────────────────────────────────────────────────────────
+  if (result.scorecard) {
+    const sc = result.scorecard;
+    const gateIcon = (s: string) => (s === "pass" ? "🟢" : s === "warn" ? "🟡" : "🔴");
+    lines.push("### 📋 Scorecard Gates");
+    lines.push("");
+    lines.push(`| Gate | Status | Evidence Grade |`);
+    lines.push(`|------|--------|----------------|`);
+    lines.push(
+      `| Security Hygiene | ${gateIcon(sc.securityHygiene)} | ${sc.evidenceQuality} (${sc.totalMetricCount - sc.inferredMetricCount}/${sc.totalMetricCount} direct) |`,
+    );
+    lines.push(`| Flow Health | ${gateIcon(sc.flowHealth)} | |`);
+    lines.push(`| Stability | ${gateIcon(sc.stabilityHealth)} | |`);
+    lines.push(`| Operational Maturity | ${gateIcon(sc.operationalMaturity)} | |`);
+    lines.push("");
+  }
+
   // ── Policy violations ─────────────────────────────────────────────────────
   const blocking = policy.violations.filter((v) => v.severity === "blocking");
   const warnings = policy.violations.filter((v) => v.severity === "warning");
@@ -228,6 +245,22 @@ export function renderPRComment(
       lines.push(`**${rec.title}** — ${rec.description}`);
       if (rec.actionItems.length > 0) {
         lines.push(`→ ${rec.actionItems[0]}`);
+      }
+      lines.push("");
+    }
+  }
+
+  // ── Fix packs ──────────────────────────────────────────────────────────────
+  if (result.fixPacks && result.fixPacks.length > 0) {
+    const topFixes = result.fixPacks.slice(0, 3);
+    lines.push("### 🛠 Fix Packs (auto-generated artifacts)");
+    lines.push("");
+    for (const fp of topFixes) {
+      const artifactList = fp.artifacts.map((a) => `\`${a.filename}\``).join(", ");
+      lines.push(`**${fp.finding}** · Effort: ${fp.effort} · Impact: ${fp.impactArea}`);
+      lines.push(`→ ${fp.whyItMatters}`);
+      if (artifactList) {
+        lines.push(`→ Artifacts: ${artifactList}`);
       }
       lines.push("");
     }
