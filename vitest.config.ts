@@ -18,6 +18,9 @@ export default defineConfig({
         "src/cli/index.ts", // CLI entry point — side-effect-heavy, tested via E2E
         "src/cli/scanSequence.ts", // spinner I/O — not unit-testable
         "src/cli/analyzer.ts", // integration with Octokit APIs
+        "src/cli/analyzerV2.ts", // integration orchestrator — calls collectors/normaliser
+        "src/cli/prCommentRenderer.ts", // Markdown output formatting
+        "src/cli/verdictRenderer.ts", // terminal output formatting
         "src/lib/cache.ts", // Redis integration
         "src/lib/github.ts", // Octokit integration
         "src/lib/vulnerabilities.ts", // OSV.dev integration
