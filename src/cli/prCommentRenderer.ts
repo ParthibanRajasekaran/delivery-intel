@@ -296,9 +296,16 @@ export function postPRComment(body: string): void {
   }
 
   try {
+    // Restrict PATH to fixed, unwriteable system directories (S4036)
+    // Preserves only the env vars gh CLI needs for authentication.
+    const safeEnv = {
+      ...process.env,
+      PATH: "/usr/local/bin:/usr/bin:/bin",
+    } satisfies NodeJS.ProcessEnv;
     execFileSync("gh", ["pr", "comment", prNumber, "--body", body, "--repo", repo], {
       stdio: "pipe",
       timeout: 15000,
+      env: safeEnv,
     });
   } catch {
     // Non-fatal — comment posting is best-effort
