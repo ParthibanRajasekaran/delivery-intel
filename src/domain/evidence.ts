@@ -66,6 +66,38 @@ export interface RawCommit {
   message: string;
 }
 
+export interface RawRelease {
+  id: number;
+  tag_name: string;
+  name: string | null;
+  created_at: string;
+  published_at: string | null;
+  prerelease: boolean;
+  draft: boolean;
+}
+
+export interface RawIssue {
+  number: number;
+  title: string;
+  labels: string[];
+  state: "open" | "closed";
+  created_at: string;
+  closed_at: string | null;
+}
+
+export interface RawContributor {
+  login: string;
+  contributions: number;
+}
+
+export interface RawBranchProtection {
+  protected: boolean;
+  requiredReviewers: number;
+  requireStatusChecks: boolean;
+  enforceAdmins: boolean;
+  requireUpToDate: boolean;
+}
+
 // ---------------------------------------------------------------------------
 // Normalized internal evidence events
 // ---------------------------------------------------------------------------
@@ -136,6 +168,28 @@ export type EvidenceEvent =
       summary: string;
       aliases: string[];
       fixedVersion: string | null;
+    }
+  | {
+      type: "ReleasePublished";
+      at: string;
+      tagName: string;
+      releaseName: string | null;
+      prerelease: boolean;
+    }
+  | {
+      type: "IssueOpened";
+      at: string;
+      issueNumber: number;
+      title: string;
+      labels: string[];
+    }
+  | {
+      type: "IssueClosed";
+      at: string;
+      issueNumber: number;
+      title: string;
+      labels: string[];
+      openedAt: string;
     };
 
 // ---------------------------------------------------------------------------
@@ -150,6 +204,10 @@ export interface RawEvidenceBag {
   commits: RawCommit[];
   /** Manifest file path → content */
   manifestFiles: Map<string, string>;
+  releases: RawRelease[];
+  issues: RawIssue[];
+  contributors: RawContributor[];
+  branchProtection: RawBranchProtection | null;
 }
 
 // ---------------------------------------------------------------------------
@@ -190,4 +248,35 @@ export function isHotfixSignal(title: string, labels: string[]): boolean {
     return true;
   }
   return labels.some((l) => ["hotfix", "incident"].includes(l.toLowerCase()));
+}
+
+// ---------------------------------------------------------------------------
+// Incident / bug classification
+// ---------------------------------------------------------------------------
+
+const INCIDENT_LABELS = ["incident", "outage", "postmortem", "hotfix", "critical", "sev0", "sev1"];
+const BUG_LABELS = ["bug", "defect", "regression", "fix"];
+
+export function isIncidentIssue(labels: string[]): boolean {
+  return labels.some((l) => INCIDENT_LABELS.includes(l.toLowerCase()));
+}
+
+export function isBugIssue(labels: string[]): boolean {
+  return labels.some((l) => BUG_LABELS.includes(l.toLowerCase()));
+}
+
+// ---------------------------------------------------------------------------
+// Commit message pattern classification
+// ---------------------------------------------------------------------------
+
+const CONVENTIONAL_COMMIT_RE =
+  /^(feat|fix|chore|docs|style|refactor|perf|test|build|ci|revert)(\(.+\))?:/i;
+const MERGE_COMMIT_RE = /^Merge (branch|pull request|remote-tracking)/i;
+
+export function isConventionalCommit(message: string): boolean {
+  return CONVENTIONAL_COMMIT_RE.test(message.trim());
+}
+
+export function isMergeCommit(message: string): boolean {
+  return MERGE_COMMIT_RE.test(message.trim());
 }

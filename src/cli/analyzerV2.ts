@@ -22,6 +22,9 @@ import { collectWorkflowRuns } from "../collectors/github/workflowRuns.js";
 import { collectPullRequests } from "../collectors/github/pullRequests.js";
 import { collectCommits } from "../collectors/github/commits.js";
 import { collectManifestFiles } from "../collectors/github/contents.js";
+import { collectReleases } from "../collectors/github/releases.js";
+import { collectIssues } from "../collectors/github/issues.js";
+import { collectContributors, collectBranchProtection } from "../collectors/github/repoMeta.js";
 
 // Domain
 import type { RawEvidenceBag } from "../domain/evidence.js";
@@ -108,14 +111,27 @@ async function collectEvidence(
   const deploymentIds = deployments.map((d) => d.id);
 
   // Fetch everything else in parallel
-  const [deploymentStatuses, workflowRuns, pullRequests, commits, manifestFiles] =
-    await Promise.all([
-      collectDeploymentStatuses(octokit, id, deploymentIds),
-      collectWorkflowRuns(octokit, id, 100),
-      collectPullRequests(octokit, id, 100),
-      collectCommits(octokit, id, 50),
-      collectManifestFiles(octokit, id),
-    ]);
+  const [
+    deploymentStatuses,
+    workflowRuns,
+    pullRequests,
+    commits,
+    manifestFiles,
+    releases,
+    issues,
+    contributors,
+    branchProtection,
+  ] = await Promise.all([
+    collectDeploymentStatuses(octokit, id, deploymentIds),
+    collectWorkflowRuns(octokit, id, 100),
+    collectPullRequests(octokit, id, 100),
+    collectCommits(octokit, id, 50),
+    collectManifestFiles(octokit, id),
+    collectReleases(octokit, id),
+    collectIssues(octokit, id),
+    collectContributors(octokit, id),
+    collectBranchProtection(octokit, id),
+  ]);
 
   return {
     deployments,
@@ -124,6 +140,10 @@ async function collectEvidence(
     pullRequests,
     manifestFiles,
     commits,
+    releases,
+    issues,
+    contributors,
+    branchProtection,
   };
 }
 
@@ -182,7 +202,13 @@ export async function analyzeV2(repoSlug: string, token?: string): Promise<Analy
   const fixPacks = generateFixPacks(metrics, vulnerabilities);
 
   // 11. Forensic signals — higher-order patterns from evidence
-  const forensics = computeForensicSignals(events, metrics);
+  const forensics = computeForensicSignals(events, metrics, {
+    events,
+    metrics,
+    contributors: rawEvidence.contributors,
+    branchProtection: rawEvidence.branchProtection,
+    vulnerabilities,
+  });
 
   // 12. Repo verdict — categorical judgment
   const verdict = computeVerdict(metrics, forensics, vulnerabilities);

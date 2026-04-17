@@ -64,6 +64,10 @@ export interface FixPack {
   impactArea: ImpactArea;
   effort: EffortLevel;
   artifacts: FixArtifact[];
+  /** Estimated trust score improvement (0-100 points) if this fix is applied. */
+  trustGain: number;
+  /** One-line explanation of how the trust score would improve. */
+  rationale: string;
 }
 
 // ---------------------------------------------------------------------------
@@ -302,6 +306,9 @@ function fixMissingDeploymentTracking(): FixPack {
         content: DEPLOYMENT_EVENT_YAML,
       },
     ],
+    trustGain: 12,
+    rationale:
+      "Moves all DORA metrics from inferred to measured, raising confidence across every trust dimension",
   };
 }
 
@@ -349,6 +356,8 @@ jobs:
 `,
       },
     ],
+    trustGain: 8,
+    rationale: `Reducing pipeline failure rate from ${percentage}% improves CI reliability trust dimension`,
   };
 }
 
@@ -379,6 +388,8 @@ function fixHighChangeFailRate(percentage: number): FixPack {
         content: PR_TEMPLATE,
       },
     ],
+    trustGain: 10,
+    rationale: `Reducing ${percentage}% change fail rate directly improves change safety trust dimension`,
   };
 }
 
@@ -426,6 +437,8 @@ function fixSlowLeadTime(medianHours: number, signal: string): FixPack {
         content: PR_TEMPLATE,
       },
     ],
+    trustGain: 5,
+    rationale: `Cutting lead time from ${days} days improves review latency and velocity perception`,
   };
 }
 
@@ -447,6 +460,9 @@ function fixMissingDependabot(ecosystem = "npm"): FixPack {
         content: DEPENDABOT_CONFIG,
       },
     ],
+    trustGain: 15,
+    rationale:
+      "Automated dependency updates address known CVEs, directly improving vulnerability exposure dimension",
   };
 }
 
@@ -469,6 +485,8 @@ function fixSlowRecovery(medianHours: number): FixPack {
         content: ROLLBACK_WORKFLOW_YAML,
       },
     ],
+    trustGain: 7,
+    rationale: `Cutting recovery from ${medianHours}h to <1h improves change safety and CI reliability dimensions`,
   };
 }
 

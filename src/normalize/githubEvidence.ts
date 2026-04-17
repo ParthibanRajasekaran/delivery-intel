@@ -87,6 +87,39 @@ export function normalizeEvidence(raw: RawEvidenceBag): EvidenceEvent[] {
     }
   }
 
+  // Releases
+  for (const r of raw.releases) {
+    const at = r.published_at ?? r.created_at;
+    events.push({
+      type: "ReleasePublished",
+      at,
+      tagName: r.tag_name,
+      releaseName: r.name,
+      prerelease: r.prerelease,
+    });
+  }
+
+  // Issues
+  for (const i of raw.issues) {
+    events.push({
+      type: "IssueOpened",
+      at: i.created_at,
+      issueNumber: i.number,
+      title: i.title,
+      labels: i.labels,
+    });
+    if (i.closed_at) {
+      events.push({
+        type: "IssueClosed",
+        at: i.closed_at,
+        issueNumber: i.number,
+        title: i.title,
+        labels: i.labels,
+        openedAt: i.created_at,
+      });
+    }
+  }
+
   // Sort chronologically ascending
   events.sort((a, b) => new Date(a.at).getTime() - new Date(b.at).getTime());
   return events;

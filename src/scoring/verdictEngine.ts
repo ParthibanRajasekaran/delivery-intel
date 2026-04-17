@@ -8,7 +8,15 @@
 
 import type { MetricSuite, PerformanceTier } from "../domain/metrics.js";
 import type { ForensicSignal } from "../domain/forensics.js";
-import type { RepoVerdict, VerdictCategory } from "../domain/forensics.js";
+import type {
+  RepoVerdict,
+  VerdictCategory,
+  AnalysisMode,
+  TrustVerdict,
+  TrustDimension,
+  TrustLevel,
+} from "../domain/forensics.js";
+import { MODE_SIGNAL_WEIGHTS } from "../domain/forensics.js";
 import type { DependencyVulnerability } from "../types/index.js";
 
 // ---------------------------------------------------------------------------
@@ -258,7 +266,13 @@ export function computeVerdict(
   metrics: MetricSuite,
   forensics: ForensicSignal[],
   vulns: DependencyVulnerability[],
+  mode?: AnalysisMode | null,
 ): RepoVerdict {
+  // Adopt mode gets a specialised trust verdict
+  if (mode === "adopt") {
+    return computeTrustVerdict(metrics, forensics, vulns);
+  }
+
   const throughput = throughputScore(metrics);
   const stability = stabilityScore(metrics);
   const critForensics = forensics.filter((f) => f.severity === "critical").length;
@@ -288,12 +302,229 @@ export function computeVerdict(
     category = "improving";
   }
 
+  // For mode-specific verdicts, filter forensics by mode weight relevance
+  const modeWeights = mode ? (MODE_SIGNAL_WEIGHTS[mode] ?? {}) : {};
+  const relevantForensics =
+    mode && Object.keys(modeWeights).length > 0
+      ? forensics.filter((f) => (modeWeights[f.id] ?? 0) > 0)
+      : forensics;
+
   return {
     category,
     headline: HEADLINES[category],
-    narrative: generateNarrative(category, metrics, forensics),
+    narrative: generateNarrative(category, metrics, relevantForensics),
+    strengths: extractStrengths(metrics, relevantForensics),
+    risks: extractRisks(metrics, relevantForensics, vulns),
+    firstFix: pickFirstFix(relevantForensics, metrics, vulns),
+  };
+}
+
+// ---------------------------------------------------------------------------
+// Trust verdict for --mode adopt
+// ---------------------------------------------------------------------------
+
+function computeTrustDimensions(
+  metrics: MetricSuite,
+  forensics: ForensicSignal[],
+  vulns: DependencyVulnerability[],
+): TrustDimension[] {
+  const adoptWeights = MODE_SIGNAL_WEIGHTS.adopt;
+
+  // Maintenance freshness
+  const freshnessSignal = forensics.find((f) => f.id === "freshness-cadence");
+  const freshnessScore = freshnessSignal ? (freshnessSignal.severity === "critical" ? 10 : 40) : 90;
+
+  // CI reliability
+  const ciSignal = forensics.find((f) => f.id === "ci-flakiness");
+  const flakySignal = forensics.find((f) => f.id === "flaky-pipeline");
+  const ciScore = ciSignal
+    ? ciSignal.severity === "critical"
+      ? 15
+      : 45
+    : flakySignal
+      ? 50
+      : tierScore(metrics.pipelineFailureRate.tier) * 25;
+
+  // Vulnerability exposure
+  const vulnSignal = forensics.find((f) => f.id === "dependency-exposure");
+  const critVulns = vulns.filter((v) => v.severity === "critical").length;
+  const vulnScore = critVulns > 0 ? 10 : vulnSignal ? 40 : 90;
+
+  // Release hygiene
+  const releaseSignal = forensics.find((f) => f.id === "release-hygiene");
+  const releaseScore = releaseSignal ? (releaseSignal.severity === "warning" ? 30 : 60) : 85;
+
+  // Contributor concentration
+  const maintainerSignal = forensics.find((f) => f.id === "maintainer-concentration");
+  const maintainerScore = maintainerSignal
+    ? maintainerSignal.severity === "critical"
+      ? 15
+      : 45
+    : 85;
+
+  // Change safety (composite of CFR + rollback signal + recovery)
+  const rollbackSignal = forensics.find((f) => f.id === "rollback-signal");
+  const changeSafetyBase =
+    (tierScore(metrics.changeFailRate.tier) * 25 +
+      tierScore(metrics.failedDeploymentRecoveryTime.tier) * 25) /
+    2;
+  const changeSafetyScore = rollbackSignal ? Math.max(changeSafetyBase - 20, 0) : changeSafetyBase;
+
+  return [
+    {
+      name: "Maintenance freshness",
+      score: freshnessScore,
+      weight: adoptWeights["freshness-cadence"] ?? 0.8,
+      signals: freshnessSignal ? [freshnessSignal.evidence] : ["Repository is actively maintained"],
+    },
+    {
+      name: "CI reliability",
+      score: ciScore,
+      weight: adoptWeights["ci-flakiness"] ?? 0.7,
+      signals: [ciSignal, flakySignal].filter(Boolean).map((s) => s!.evidence),
+    },
+    {
+      name: "Vulnerability exposure",
+      score: vulnScore,
+      weight: adoptWeights["dependency-exposure"] ?? 0.9,
+      signals: vulnSignal
+        ? [vulnSignal.evidence]
+        : vulns.length > 0
+          ? [`${vulns.length} known vulnerabilities (no critical)`]
+          : ["No known vulnerabilities"],
+    },
+    {
+      name: "Release hygiene",
+      score: releaseScore,
+      weight: adoptWeights["release-hygiene"] ?? 0.6,
+      signals: releaseSignal ? [releaseSignal.evidence] : ["Releases follow semantic versioning"],
+    },
+    {
+      name: "Contributor concentration",
+      score: maintainerScore,
+      weight: adoptWeights["maintainer-concentration"] ?? 0.7,
+      signals: maintainerSignal
+        ? [maintainerSignal.evidence]
+        : ["Contributions are distributed across multiple maintainers"],
+    },
+    {
+      name: "Change safety",
+      score: changeSafetyScore,
+      weight: 0.7,
+      signals: rollbackSignal
+        ? [rollbackSignal.evidence]
+        : changeSafetyBase >= 75
+          ? ["Low change failure rate with fast recovery"]
+          : ["Change failure rate or recovery time could improve"],
+    },
+  ];
+}
+
+function computeTrustScore(dimensions: TrustDimension[]): number {
+  const totalWeight = dimensions.reduce((s, d) => s + d.weight, 0);
+  if (totalWeight === 0) {
+    return 0;
+  }
+  const weighted = dimensions.reduce((s, d) => s + d.score * d.weight, 0);
+  return Math.round(weighted / totalWeight);
+}
+
+function trustLevel(score: number, unknowns: number): TrustLevel {
+  if (unknowns >= 3) {
+    return "insufficient-evidence";
+  }
+  if (score >= 75) {
+    return "high";
+  }
+  if (score >= 45) {
+    return "moderate";
+  }
+  return "low";
+}
+
+function trustHeadline(level: TrustLevel): string {
+  switch (level) {
+    case "high":
+      return "Safe to adopt — strong evidence of healthy delivery";
+    case "moderate":
+      return "Adopt with caution — some risk factors detected";
+    case "low":
+      return "High risk — significant concerns found";
+    case "insufficient-evidence":
+      return "Cannot assess — insufficient evidence available";
+  }
+}
+
+function trustNarrative(
+  level: TrustLevel,
+  dimensions: TrustDimension[],
+  forensics: ForensicSignal[],
+): string {
+  const weakDims = dimensions.filter((d) => d.score < 50);
+  const strongDims = dimensions.filter((d) => d.score >= 75);
+
+  switch (level) {
+    case "high":
+      return (
+        `This repository shows strong delivery discipline across ${strongDims.length} of ${dimensions.length} trust dimensions. ` +
+        `It is actively maintained, CI is reliable, and no critical security issues were found. Safe to depend on.`
+      );
+    case "moderate":
+      return (
+        `This repository has ${weakDims.length} area${weakDims.length !== 1 ? "s" : ""} of concern: ` +
+        `${weakDims.map((d) => d.name.toLowerCase()).join(", ")}. ` +
+        `${forensics.filter((f) => f.severity !== "info").length} forensic signals suggest caution. ` +
+        `Consider the risks before adopting.`
+      );
+    case "low":
+      return (
+        `Significant risk factors detected: ${weakDims.map((d) => d.name.toLowerCase()).join(", ")}. ` +
+        `${forensics.filter((f) => f.severity === "critical").length} critical signals found. ` +
+        `This repo requires substantial due diligence before adoption.`
+      );
+    case "insufficient-evidence":
+      return (
+        `Most metrics were inferred from proxy signals. Insufficient evidence to confidently assess ` +
+        `whether this repository is safe to adopt. Look for deployment events, releases, and CI history.`
+      );
+  }
+}
+
+function computeTrustVerdict(
+  metrics: MetricSuite,
+  forensics: ForensicSignal[],
+  vulns: DependencyVulnerability[],
+): TrustVerdict {
+  const dimensions = computeTrustDimensions(metrics, forensics, vulns);
+  const score = computeTrustScore(dimensions);
+
+  const unknownCount = [
+    metrics.deploymentFrequency,
+    metrics.changeLeadTime,
+    metrics.changeFailRate,
+    metrics.failedDeploymentRecoveryTime,
+    metrics.pipelineFailureRate,
+  ].filter((m) => m.tier === "Unknown").length;
+
+  const level = trustLevel(score, unknownCount);
+
+  // Map trust level to verdict category
+  const categoryMap: Record<TrustLevel, VerdictCategory> = {
+    high: "exemplary",
+    moderate: "improving",
+    low: "unstable",
+    "insufficient-evidence": "unknown",
+  };
+
+  return {
+    category: categoryMap[level],
+    headline: trustHeadline(level),
+    narrative: trustNarrative(level, dimensions, forensics),
     strengths: extractStrengths(metrics, forensics),
     risks: extractRisks(metrics, forensics, vulns),
     firstFix: pickFirstFix(forensics, metrics, vulns),
+    trustLevel: level,
+    trustScore: score,
+    trustDimensions: dimensions,
   };
 }
