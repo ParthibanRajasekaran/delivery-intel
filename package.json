@@ -1,11 +1,11 @@
 {
   "name": "delivery-intel",
-  "version": "1.2.0",
+  "version": "1.5.0",
   "type": "module",
   "engines": {
     "node": ">=18.0.0"
   },
-  "description": "Point it at any GitHub repo — get DORA metrics, vulnerability scan, and a health score. No setup, no tokens for public repos. CLI + web dashboard.",
+  "description": "DORA metrics, vulnerability scan, and delivery health score for any GitHub repo. One command, no setup, no tokens needed for public repos.",
   "keywords": [
     "dora",
     "dora-metrics",
@@ -16,12 +16,18 @@
     "deployment-frequency",
     "lead-time",
     "change-failure-rate",
+    "mean-time-to-restore",
+    "mttr",
     "vulnerability",
     "osv",
     "cli",
     "dashboard",
     "software-delivery",
-    "engineering-metrics"
+    "engineering-metrics",
+    "developer-productivity",
+    "platform-engineering",
+    "engineering-effectiveness",
+    "dx"
   ],
   "license": "MIT",
   "author": "ParthibanRajasekaran",

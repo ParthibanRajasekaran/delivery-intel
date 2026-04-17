@@ -30,3 +30,7 @@ npm-debug.log*
 .DS_Store
 Thumbs.db
 coverage/
+
+# local scripts & test artefacts
+scripts/
+jittest-report.json
