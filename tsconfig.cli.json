@@ -16,6 +16,7 @@
   },
   "include": [
     "src/cli/**/*.ts",
+    "src/aidt/**/*.ts",
     "src/shared/**/*.ts",
     "src/collectors/**/*.ts",
     "src/domain/**/*.ts",
@@ -23,5 +24,6 @@
     "src/normalize/**/*.ts",
     "src/scoring/**/*.ts",
     "src/security/**/*.ts"
-  ]
+  ],
+  "exclude": ["src/**/__tests__/**/*.ts", "src/**/*.test.ts", "src/**/*.spec.ts"]
 }
