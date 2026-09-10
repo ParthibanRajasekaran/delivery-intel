@@ -17,6 +17,7 @@ import { compareRepos } from "./compareEngine.js";
 import { renderCyberReport } from "./cyberRenderer.js";
 import { renderVerdict } from "./verdictRenderer.js";
 import { renderPRComment } from "./prCommentRenderer.js";
+import { renderAidtResult } from "./aidtRenderer.js";
 import { withScanSequence } from "./scanSequence.js";
 import { writeStepSummary } from "./stepSummary.js";
 import { computeRiskScore, type RiskBreakdown } from "./riskEngine.js";
@@ -24,6 +25,7 @@ import { generateNarrativeSummary, generateFallbackNarrative } from "./narrative
 import { evaluatePolicies, DEFAULT_THRESHOLDS } from "../domain/policy.js";
 import type { AnalysisMode } from "../domain/forensics.js";
 import { ANALYSIS_MODES } from "../domain/forensics.js";
+import { runAidt } from "../aidt/index.js";
 import chalk from "chalk";
 import * as fs from "node:fs";
 import { execFileSync } from "node:child_process";
@@ -128,6 +130,8 @@ ${bold("OPTIONS")}
   ${chalk.hex("#ffbe0b")("--risk")}            Include workflow strain analysis
   ${chalk.hex("#ffbe0b")("--narrative")}       Generate executive narrative summary (LLM or fallback)
   ${chalk.hex("#ffbe0b")("--compare")}         Compare two repos side-by-side (trust engine)
+  ${chalk.hex("#ffbe0b")("--aidt")}            ${bold("← New")} Canary trust scoring (AI authorship + review density)
+  ${chalk.hex("#ffbe0b")("--pr <number>")}     PR number to analyse with --aidt
   ${chalk.hex("#ffbe0b")("--help")}            Show this help message
   ${chalk.hex("#ffbe0b")("--version")}         Show version number
 
@@ -172,7 +176,9 @@ interface CliArgs {
   prComment: boolean;
   blockingEnabled: boolean;
   compareMode: boolean;
+  aidtMode: boolean;
   failBelow: number | null;
+  prNumber: number | null;
   outputFile: string | null;
   token: string | null;
   repo: string | null;
@@ -190,11 +196,13 @@ function parseCliArgs(argv: string[]): CliArgs {
   const prComment = argv.includes("--pr-comment");
   const blockingEnabled = argv.includes("--block");
   const compareMode = argv.includes("--compare");
+  const aidtMode = argv.includes("--aidt");
   let outputFile: string | null = null;
   let token: string | null = null;
   let repo: string | null = null;
   let compareRepoB: string | null = null;
   let failBelow: number | null = null;
+  let prNumber: number | null = null;
   let mode: AnalysisMode | null = null;
 
   if (compareMode) {
@@ -213,6 +221,12 @@ function parseCliArgs(argv: string[]): CliArgs {
       const n = Number.parseInt(argv[i], 10);
       if (!Number.isNaN(n)) {
         failBelow = n;
+      }
+    } else if (argv[i] === "--pr" && argv[i + 1]) {
+      i++;
+      const n = Number.parseInt(argv[i], 10);
+      if (!Number.isNaN(n)) {
+        prNumber = n;
       }
     } else if (argv[i] === "--mode" && argv[i + 1]) {
       i++;
@@ -240,7 +254,9 @@ function parseCliArgs(argv: string[]): CliArgs {
     prComment,
     blockingEnabled,
     compareMode,
+    aidtMode,
     failBelow,
+    prNumber,
     outputFile,
     token,
     repo,
@@ -395,6 +411,33 @@ async function main(): Promise<void> {
   }
 
   try {
+    // ── aidt standalone path ─────────────────────────────────────────────────
+    if (cli.aidtMode && !cli.v2Mode) {
+      if (cli.prNumber === null) {
+        console.error(red("Error:") + " --aidt requires --pr <number>");
+        process.exit(1);
+      }
+      const [owner, repo] = (cli.repo ?? "").split("/");
+      if (!owner || !repo) {
+        console.error(red("Error:") + " Invalid repository format. Use owner/repo.");
+        process.exit(1);
+      }
+      const aidtResult = await runAidt({
+        owner,
+        repo,
+        prNumber: cli.prNumber,
+        token: token ?? undefined,
+        copilotOrgToken: process.env.COPILOT_ORG_TOKEN,
+      });
+      if (cli.jsonMode || cli.outputFile) {
+        const json = JSON.stringify(aidtResult, null, 2);
+        emitJsonOutput(json, cli.outputFile, cli.jsonMode);
+      } else {
+        console.log(renderAidtResult(aidtResult));
+      }
+      return;
+    }
+
     // ── compare path ─────────────────────────────────────────────────────────
     if (cli.compareMode) {
       if (!cli.compareRepoB) {
@@ -481,8 +524,26 @@ async function main(): Promise<void> {
         cli.blockingEnabled,
       );
 
+      // Fetch AIDT result if requested (before emitting any output so JSON is combined)
+      let aidtPayload: Awaited<ReturnType<typeof runAidt>> | undefined;
+      if (cli.aidtMode && cli.prNumber !== null) {
+        const [aidtOwner, aidtRepo] = (cli.repo ?? "").split("/");
+        if (aidtOwner && aidtRepo) {
+          aidtPayload = await runAidt({
+            owner: aidtOwner,
+            repo: aidtRepo,
+            prNumber: cli.prNumber,
+            token: token ?? undefined,
+            copilotOrgToken: process.env.COPILOT_ORG_TOKEN,
+          });
+        }
+      }
+
       if (cli.jsonMode || cli.outputFile) {
-        const json = JSON.stringify({ ...result, policy }, null, 2);
+        const output = aidtPayload
+          ? { ...result, policy, aidt: aidtPayload }
+          : { ...result, policy };
+        const json = JSON.stringify(output, null, 2);
         if (cli.outputFile) {
           fs.writeFileSync(cli.outputFile, json, "utf-8");
         }
@@ -491,6 +552,9 @@ async function main(): Promise<void> {
         }
       } else {
         console.log(renderVerdict(result, policy));
+        if (aidtPayload) {
+          console.log(renderAidtResult(aidtPayload));
+        }
       }
 
       // PR comment — write to a file and optionally post via gh CLI

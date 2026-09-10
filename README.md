@@ -469,6 +469,58 @@ The `GET /api/badge?repo=owner/repo` endpoint returns a [Shields.io endpoint-bad
 
 ---
 
+## AIDT — Canary Trust Scoring
+
+AI tools accelerate delivery, but they introduce a **Velocity Paradox**: the same tooling that lets a developer ship more code per day also reduces the natural review friction that catches subtle regressions. A PR co-authored by Copilot or Claude may contain highly regular, syntactically correct code that passes linting and unit tests but encodes wrong assumptions — and because the code looks polished, reviewers spend less time on it. AIDT (AI-Integrated Delivery Telemetry) makes this risk visible by combining an AI authorship signal with a review density measurement and mapping both to a recommended canary deployment window.
+
+### CLI usage
+
+```bash
+# Standalone — analyse a single PR
+npx delivery-intel owner/repo --aidt --pr 142
+
+# Combined with v2 engine — full delivery health + canary trust
+npx delivery-intel owner/repo --v2 --aidt --pr 142
+
+# JSON output
+npx delivery-intel owner/repo --aidt --pr 142 --format json
+```
+
+Set `COPILOT_ORG_TOKEN` in your environment to enable Heuristic 3 (Copilot acceptance rate). Without it the heuristic is skipped and its weight is redistributed proportionally across the other two signals.
+
+### Output shape
+
+| Field | Type | Description |
+|---|---|---|
+| `pr_number` | `number` | The PR that was analysed |
+| `ai_authorship_pct` | `number` (0–1) | Combined AI authorship probability |
+| `review_time_per_loc` | `number` | Seconds of review time per line changed |
+| `baseline_density` | `number` | Rolling 90-day median s/loc (or fallback) |
+| `risk_weight` | `number` (0–1, 3dp) | Composite risk weight |
+| `canary_duration_minutes` | `30 \| 60 \| 240` | Recommended canary window |
+| `risk_tier` | `"low" \| "medium" \| "high"` | Human-readable tier |
+| `authorship_signals.description_match` | `boolean` | H1: AI phrase found in PR title/body |
+| `authorship_signals.diff_entropy_score` | `number` | H2: diff regularity score (high = AI-like) |
+| `authorship_signals.copilot_acceptance_rate` | `number \| null` | H3: org-level Copilot acceptance rate (null if unavailable) |
+| `baseline_source` | `"computed" \| "fallback"` | Whether baseline was calculated or defaulted |
+| `recommendation` | `string` | Human-readable deployment guidance |
+
+### BASELINE\_DENSITY
+
+`BASELINE_DENSITY` is the rolling 90-day median of `review_time_seconds / lines_changed` computed from merged PRs in the target repo that contain no AI authorship signals (description patterns, Copilot attribution, etc.). It answers the question: *how much review attention does a human-authored change in this repo typically receive per line?*
+
+If fewer than 10 qualifying PRs exist in the 90-day window, the module falls back to **6.0 seconds/line** — a conservative estimate derived from typical open-source PR review patterns.
+
+### Calibration note
+
+> The thresholds used in AIDT (risk weight 0.70 and 0.45, Heuristic 3 weight 20%, review density baseline fallback 6.0 s/loc) are calibration starting points derived from a single production environment. You should recalibrate these thresholds against your own team's incident data before treating canary durations as hard gates.
+
+### Ethics note
+
+> **This module produces team-level trending signals. Do not use review density or authorship scores as individual engineer performance metrics.**
+
+---
+
 ## 🤝 Contributing
 
 Contributions welcome! See [CONTRIBUTING.md](CONTRIBUTING.md) for dev setup, coding standards, and workflow.
