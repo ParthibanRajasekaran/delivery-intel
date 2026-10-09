@@ -53,12 +53,12 @@ jobs:
       - name: Run JITTest pipeline
         id: jittest
         env:
-          GITHUB_BASE_REF: ${{ github.event.pull_request.base.sha }}
+          PR_BASE_SHA: ${{ github.event.pull_request.base.sha }}
         run: |
           # Generate catching tests for the diff between PR head and base.
           # Output the report as JSON to a file for the next step.
           npm run jittest:ci -- \
-            --base-ref "$GITHUB_BASE_REF" \
+            --base-ref "$PR_BASE_SHA" \
             --output jittest-report.json \
             --verbose
 

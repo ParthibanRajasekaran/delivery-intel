@@ -1,12 +1,16 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
+import { Octokit } from "@octokit/rest";
 import {
   checkCoverage,
   checkReadme,
   checkStalePRs,
   renderHygieneMarkdown,
+  runHygieneCheck,
   type HygieneReport,
   type HygieneCheck,
 } from "../cli/hygieneCheck";
+
+vi.mock("@octokit/rest", () => ({ Octokit: vi.fn() }));
 
 // ---------------------------------------------------------------------------
 // Octokit mock shared across API-dependent tests
@@ -205,6 +209,18 @@ describe("checkStalePRs", () => {
     expect(result.detail).toContain("#42");
   });
 
+  it("warns about stale PRs when configured for a non-blocking CI report", async () => {
+    const ago = new Date(Date.now() - 100 * 60 * 60 * 1000).toISOString();
+    const octo = mockOctokit();
+    octo.pulls.list.mockResolvedValue({ data: [{ number: 42, created_at: ago }] });
+
+    const result = await checkStalePRs(octo, "owner", "repo", 72, "warn");
+
+    expect(result.status).toBe("warn");
+    expect(result.detail).toContain("#42");
+    expect(result.detail).toContain("1 PR(s) waiting >72h");
+  });
+
   it("passes when aged PRs already have reviews", async () => {
     const ago = new Date(Date.now() - 100 * 60 * 60 * 1000).toISOString();
     const octo = mockOctokit();
@@ -247,11 +263,37 @@ describe("checkStalePRs", () => {
 // runHygieneCheck (integration orchestrator)
 // ---------------------------------------------------------------------------
 describe("runHygieneCheck", () => {
-  // We mock the Octokit constructor so the orchestrator uses our spy instance.
-  // The simplest way is to call the exported sub-functions directly (already
-  // tested above), but to cover the orchestrator code-paths we can mock at
-  // the module level. Since `runHygieneCheck` internally creates an Octokit,
-  // we test the deriveOverallStatus path via the sub-function composition:
+  it.each([
+    [90, "warn"],
+    [50, "fail"],
+  ] as const)(
+    "reports %s%% coverage with advisory stale reviews as %s",
+    async (coverage, status) => {
+      const octo = mockOctokit();
+      octo.repos.getContent.mockResolvedValue({
+        data: { content: Buffer.from("A".repeat(200)).toString("base64") },
+      });
+      octo.pulls.list.mockResolvedValue({
+        data: [
+          { number: 42, created_at: new Date(Date.now() - 100 * 60 * 60 * 1000).toISOString() },
+        ],
+      });
+      vi.mocked(Octokit).mockImplementationOnce(function () {
+        return octo;
+      });
+
+      const report = await runHygieneCheck({
+        token: "test-token",
+        repo: "owner/repo",
+        coveragePercent: coverage,
+        staleReviewStatus: "warn",
+      });
+
+      expect(report.overallStatus).toBe(status);
+      expect(report.checks.find((check) => check.name === "Stale PR Review")?.status).toBe("warn");
+      expect(report.markdownSummary).toContain("#42");
+    },
+  );
 
   it("derives overall fail when any check fails", async () => {
     // We directly test the derivation by exercising the rendered markdown

@@ -41,6 +41,8 @@ export interface HygieneOptions {
   coveragePercent?: number;
   /** Maximum hours a PR can sit without review before flagging (default: 72). */
   maxReviewWaitHours?: number;
+  /** Severity of stale review findings (default: fail). Use warn for PR CI. */
+  staleReviewStatus?: "fail" | "warn";
 }
 
 // ---------------------------------------------------------------------------
@@ -125,6 +127,7 @@ export async function checkStalePRs(
   owner: string,
   repo: string,
   maxHours: number,
+  staleReviewStatus: "fail" | "warn" = "fail",
 ): Promise<HygieneCheck> {
   try {
     const { data: pulls } = await octokit.pulls.list({
@@ -176,7 +179,7 @@ export async function checkStalePRs(
       .join(", ");
     return {
       name: "Stale PR Review",
-      status: "fail",
+      status: staleReviewStatus,
       detail: `${stalePRs.length} PR(s) waiting >${maxHours}h for review: ${prList}${stalePRs.length > 5 ? "…" : ""}.`,
     };
   } catch {
@@ -269,7 +272,7 @@ export async function runHygieneCheck(options: HygieneOptions): Promise<HygieneR
   const checks = await Promise.all([
     checkReadme(octokit, owner, repo),
     Promise.resolve(checkCoverage(options.coveragePercent)),
-    checkStalePRs(octokit, owner, repo, maxHours),
+    checkStalePRs(octokit, owner, repo, maxHours, options.staleReviewStatus),
   ]);
 
   const overallStatus = deriveOverallStatus(checks);

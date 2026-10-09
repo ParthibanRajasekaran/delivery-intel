@@ -2,7 +2,8 @@
 # Engineering Hygiene Gate
 # ============================================================================
 # Runs on every PR to main and posts a Hygiene Report as a PR comment.
-# Checks: README.md presence, test coverage >80%, stale PRs without review.
+# Gates: README.md presence and test coverage >=60%.
+# Reports stale PRs without review as warnings so unrelated PRs can proceed.
 # ============================================================================
 
 name: Engineering Hygiene
@@ -67,6 +68,7 @@ jobs:
               repo: context.repo.owner + '/' + context.repo.repo,
               coveragePercent,
               maxReviewWaitHours: 72,
+              staleReviewStatus: 'warn',
             });
 
             // Post or update the PR comment
